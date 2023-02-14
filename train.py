@@ -8,9 +8,15 @@ import matplotlib.pyplot as plt
 
 # create Dataset object and Dataloader
 # The path to root directory, which contains UCF101 video files (not rawframes)
-root_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucf101/UCF-101'
 
+lab_server_pc = False
+
+if lab_server_pc:
+root_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucf101/UCF-101'
 ann_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucfTrainTestSplit'
+else:
+    root_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/videos'
+    ann_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/ucfTrainTestSplit'
 
 batch_size = 8
 
