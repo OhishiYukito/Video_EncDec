@@ -64,7 +64,7 @@ class DecoderToFrames(torch.nn.Module):
             self.decnn4, torch.nn.BatchNorm3d(64), torch.nn.ReLU(),
             self.decnn3, torch.nn.BatchNorm3d(32), torch.nn.ReLU(),
             self.decnn2, torch.nn.BatchNorm3d(16), torch.nn.ReLU(),
-            self.decnn1
+            self.decnn1, torch.nn.BatchNorm3d(num_channel), torch.nn.ReLU(),
         )
         
     def forward(self, input):

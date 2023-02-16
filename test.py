@@ -6,22 +6,23 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 
-#torch.set_default_tensor_type('torch.cuda.FloatTensor')
+import show_results as show
 
 # create Dataset object and Dataloader
 # The path to root directory, which contains UCF101 video files (not rawframes)
-lab_server_pc = False
+lab_server_pc = True
 
 if lab_server_pc:
-root_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucf101/UCF-101'
-ann_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucfTrainTestSplit'
+    root_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucf101/UCF-101'
+    ann_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucfTrainTestSplit'
 else:
     root_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/videos'
     ann_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/ucfTrainTestSplit'
 
 batch_size = 4
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+#device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = "cpu"
 print(device)
 print("device_count = {}".format(torch.cuda.device_count()))
 
@@ -33,7 +34,7 @@ tfs = transforms.Compose([
             # reshape into (C, T, H, W) for easier convolutions
             transforms.Lambda(lambda x: x.permute(3, 0, 1, 2)),
             # rescale to the most common size
-            transforms.Lambda(lambda x: nn.functional.interpolate(x, (240, 320))),
+            transforms.Lambda(lambda x: nn.functional.interpolate(x, (240, 240))),
 ])
 
 def custom_collate(batch):
@@ -63,8 +64,8 @@ dataloader = torch.utils.data.DataLoader(dataset=dataset,
 # example : if batch_size=4, len(data[1])=4
 
 # create model instance
-encoder = torch.load('result/model_encoder.pth')
-decoder = torch.load('result/model_decoder.pth')
+encoder = torch.load('result/model_encoder_240*240.pth')
+decoder = torch.load('result/model_decoder_240*240.pth')
 #model = models.EncoderDecoder(3)
  
 encoder.eval()
@@ -79,6 +80,8 @@ decoder.to(device)
 #encoder = nn.DataParallel(encoder, device_ids=[0,1,2,3])
 #decoder = nn.DataParallel(decoder, device_ids=[0,1,2,3])
 #model = nn.DataParallel(model, device_ids=[0,1,2,3])
+
+show.plot_images(dataloader, encoder, decoder, device)
 
 # loss function
 loss_fn = nn.L1Loss()

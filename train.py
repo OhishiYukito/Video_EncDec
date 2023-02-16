@@ -5,20 +5,22 @@ from torchvision import transforms
 from torchvision.datasets import UCF101
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import os
 
 # create Dataset object and Dataloader
 # The path to root directory, which contains UCF101 video files (not rawframes)
-
-lab_server_pc = False
+input_H = 120
+input_W = 160
+batch_size = 8
+lab_server_pc = True
 
 if lab_server_pc:
-root_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucf101/UCF-101'
-ann_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucfTrainTestSplit'
+    root_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucf101/UCF-101'
+    ann_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucfTrainTestSplit'
 else:
     root_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/videos'
     ann_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/ucfTrainTestSplit'
 
-batch_size = 8
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
@@ -32,7 +34,7 @@ tfs = transforms.Compose([
             # reshape into (C, T, H, W) for easier convolutions
             transforms.Lambda(lambda x: x.permute(3, 0, 1, 2)),
             # rescale to the most common size
-            transforms.Lambda(lambda x: nn.functional.interpolate(x, (240, 320))),
+            transforms.Lambda(lambda x: nn.functional.interpolate(x, (input_H, input_W))),
 ])
 
 def custom_collate(batch):
@@ -75,13 +77,11 @@ decoder.to(device)
 #model.to(device)
 
 # for using multi-gpu
-#if device == "cuda:0":
-print("Let's use multi-gpu!")
-encoder = nn.DataParallel(encoder, device_ids=[0,1,2,3])
-decoder = nn.DataParallel(decoder, device_ids=[0,1,2,3])
-#model = nn.DataParallel(model, device_ids=[0,1,2,3])
-
-
+if lab_server_pc:
+    print("Let's use multi-gpu!")
+    encoder = nn.DataParallel(encoder, device_ids=[0,1,2,3])
+    decoder = nn.DataParallel(decoder, device_ids=[0,1,2,3])
+    #model = nn.DataParallel(model, device_ids=[0,1,2,3])
 
 
 # loss function and optimizer
@@ -92,22 +92,11 @@ optimizer_encoder = torch.optim.SGD(encoder.parameters(), lr=1e-3)
 
 log ={"loss":[]}
 
+
 for i, batch in enumerate(tqdm(dataloader)):
 
     frame_batch = batch[0].to(device)
     #label_batch = batch[1].to(device)
-    
-#    for i in range(batch_size):
-#        # get one video frames and its label
-#        frames = frame_batch[i]
-#        label = label_batch[i]
-        
-#        # encode and decode
-#        feature = encoder(frames)
-#        output = decoder(label)
-        
-#        # use loss function and labels to evaluate
-#        loss = loss_fn(output, frames)
         
     features = encoder(frame_batch)
     output = decoder(features)
@@ -126,16 +115,18 @@ for i, batch in enumerate(tqdm(dataloader)):
     # clear cash
     del frame_batch
     #del label_batch
-    #del features
+    del features
     del output
     torch.cuda.empty_cache()
     
     if i % 100 == 0:
         log["loss"].append(float(loss))
 
-    
-torch.save(encoder, 'result/model_encoder.pth')
-torch.save(decoder, 'result/model_decoder.pth')
+
+folder_name = 'result/'+str(input_H)+'*'+str(input_W)
+os.makedirs(folder_name, exist_ok=True)
+torch.save(encoder, folder_name+'/model_encoder_'+folder_name+'.pth')
+torch.save(decoder, folder_name+'/model_decoder_'+folder_name+'.pth')
 #torch.save(model, 'model_encoder_decoder.pth')
 
 x = range(len(log["loss"]))

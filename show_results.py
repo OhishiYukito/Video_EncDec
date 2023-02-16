@@ -27,8 +27,11 @@ def plot_images(dataloader, encoder, decoder, device):
     itr_dataloader = iter(dataloader)
     x = next(itr_dataloader)
     frame_batches = x[0]
-    reshaped_batch = tfs_re(frame_batches[0])   
+    reshaped_batch = tfs_re(frame_batches[0])
     plot_image(reshaped_batch[0])
+    if getattr(encoder, 'device_ids', False):
+        encoder = encoder.module
+        decoder = decoder.module
     output = encoder(frame_batches.to(device))
     output = decoder(output)
     output = tfs_re(output[0])
