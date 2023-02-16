@@ -1,5 +1,6 @@
 import torch
 
+
 class Encoder(torch.nn.Module):
     def __init__(self, num_channel):
         super(Encoder, self).__init__()
@@ -83,3 +84,30 @@ class EncoderDecoder(torch.nn.Module):
         features = self.encoder(input)
         output = self.decoder(features)
         return output
+    
+
+class DecoderToClassification(torch.nn.Module):
+    def __init__(self, input_shape, class_indxs):
+        super().__init__()
+        
+        # (batch_size, num_frames, C, H, W) -> (batch_size, num_frames, C*H*W)
+        self.flatten = torch.nn.Flatten(2,4)
+        
+        # (batch_size, num_frames, C*H*W) -> (batch_size, num_frames, len(class_indxs))
+        self.fc = torch.nn.Linear(in_features=(input_shape[1]*input_shape[3]*input_shape[4]), out_features=len(class_indxs))
+        
+        # outputs probability vector
+        #self.softmax = torch.nn.Softmax(dim=1)
+        
+    
+    def forward(self, input):
+        # input == features == encoder's output (shape = (batch_size, C_out, num_frames, H_out, W_out))
+        
+        input = input.permute()         # (batch_size, C, num_frames, H, W) -> (batch_size, num_frames, C, H, W)
+        output = self.flatten(input)    # (batch_size, num_frames, C, H, W) -> (batch_size, num_frames, C*H*W)
+        output = self.fc(output)        # (batch_size, num_frames, C*H*W) -> (batch_size, num_frames, len(class_indxs))
+        output = torch.sum(output, 1)   # (batch_size, num_frames, len(class_indxs)) -> (batch_size, len(class_indxs))
+        #output = self.softmax(output)   # probability vectors
+        
+        return output
+        

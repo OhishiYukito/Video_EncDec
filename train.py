@@ -7,13 +7,22 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
 
-# create Dataset object and Dataloader
-# The path to root directory, which contains UCF101 video files (not rawframes)
+### Parameters ###############################################
+subject_id = 1
+subjects = {
+    0 : "reconstruction",
+    1 : "classification",
+    2 : "interpolation"   
+}
+
 input_H = 120
 input_W = 160
 batch_size = 8
-lab_server_pc = True
+lab_server_pc = False
+##########################################################
 
+# create Dataset object and Dataloader
+# The path to root directory, which contains UCF101 video files (not rawframes)
 if lab_server_pc:
     root_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucf101/UCF-101'
     ann_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucfTrainTestSplit'
@@ -21,6 +30,14 @@ else:
     root_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/videos'
     ann_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/ucfTrainTestSplit'
 
+if subject_id == 1:
+    # class_index dictionary
+    class_indxs = {}
+    with open("dataset/ucfTrainTestSplit/classInd.txt") as f:
+        for line in f:
+            (key, val) = line.split()
+            class_indxs[int(key)] = val
+            
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
@@ -45,14 +62,12 @@ def custom_collate(batch):
 
 
 dataset = UCF101(root= root_dir,
-                    annotation_path= ann_dir,
-                    frames_per_clip=5,
-                    step_between_clips=3,
-                    train=True,
-                    transform=tfs,
-                    num_workers=20
-                    )
-
+                 annotation_path= ann_dir,
+                 frames_per_clip=5,
+                 step_between_clips=3,
+                 train=True,
+                 transform=tfs,
+                 num_workers=20)
 
 dataloader = torch.utils.data.DataLoader(dataset=dataset,
                                          batch_size=batch_size,
@@ -65,7 +80,14 @@ dataloader = torch.utils.data.DataLoader(dataset=dataset,
 
 # create model instance
 encoder = models.Encoder(3)
-decoder = models.DecoderToFrames(3)
+if subject_id == 0:
+    decoder = models.DecoderToFrames(3)
+elif subject_id == 1:
+    # get feature's shape
+    encoder.eval()
+    example = next(iter(dataloader))[0]
+    example = encoder(example)
+    decoder = models.DecoderToClassification(input_shape= example.shape, class_indxs= class_indxs)
 #model = models.EncoderDecoder(3)
  
 encoder.train()
@@ -85,7 +107,7 @@ if lab_server_pc:
 
 
 # loss function and optimizer
-loss_fn = nn.L1Loss()
+loss_fn = nn.L1Loss() if subject_id==0 else nn.CrossEntropyLoss()
 optimizer_decoder = torch.optim.SGD(decoder.parameters(), lr=1e-3)
 optimizer_encoder = torch.optim.SGD(encoder.parameters(), lr=1e-3)
 #optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
@@ -95,14 +117,17 @@ log ={"loss":[]}
 
 for i, batch in enumerate(tqdm(dataloader)):
 
-    frame_batch = batch[0].to(device)
-    #label_batch = batch[1].to(device)
+    frame_batch = batch[0].to(device)   # (batch_size, C, num_frames, H, W)
+    label_batch = batch[1].to(device)   # (batch_size)
         
-    features = encoder(frame_batch)
+    features = encoder(frame_batch)     #(batch_size, C_feature, num_frames, H, W)
     output = decoder(features)
-    #output = model(frame_batch)
-    loss = loss_fn(output, frame_batch)
     
+    if subject_id == 0:
+        loss = loss_fn(output, frame_batch)
+    elif subject_id == 1:
+        loss = loss_fn(output, label_batch)
+        
     # backpropagation
     optimizer_decoder.zero_grad()
     optimizer_encoder.zero_grad()
@@ -114,7 +139,8 @@ for i, batch in enumerate(tqdm(dataloader)):
 
     # clear cash
     del frame_batch
-    #del label_batch
+    if subject_id==1:
+        del label_batch
     del features
     del output
     torch.cuda.empty_cache()
@@ -123,10 +149,11 @@ for i, batch in enumerate(tqdm(dataloader)):
         log["loss"].append(float(loss))
 
 
-folder_name = 'result/'+str(input_H)+'*'+str(input_W)
-os.makedirs(folder_name, exist_ok=True)
-torch.save(encoder, folder_name+'/model_encoder_'+folder_name+'.pth')
-torch.save(decoder, folder_name+'/model_decoder_'+folder_name+'.pth')
+folder_name = str(input_H)+'*'+str(input_W)
+folder_path = 'result/' + folder_name
+os.makedirs(folder_path, exist_ok=True)
+torch.save(encoder, folder_path +'/'+ subjects[subject_id]+'_encoder_'+folder_name+'.pth')
+torch.save(decoder, folder_path +'/'+ subjects[subject_id]+'_decoder_'+folder_name+'.pth')
 #torch.save(model, 'model_encoder_decoder.pth')
 
 x = range(len(log["loss"]))
