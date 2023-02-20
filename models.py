@@ -90,10 +90,12 @@ class DecoderToClassification(torch.nn.Module):
     def __init__(self, input_shape, class_indxs):
         super().__init__()
         
+        
         # (batch_size, num_frames, C, H, W) -> (batch_size, num_frames, C*H*W)
         self.flatten = torch.nn.Flatten(2,4)
         
         # (batch_size, num_frames, C*H*W) -> (batch_size, num_frames, len(class_indxs))
+        # input_shape=(batch_size, C, num_frames, H, W)
         self.fc = torch.nn.Linear(in_features=(input_shape[1]*input_shape[3]*input_shape[4]), out_features=len(class_indxs))
         
         # outputs probability vector

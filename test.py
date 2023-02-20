@@ -10,7 +10,19 @@ import show_results as show
 
 # create Dataset object and Dataloader
 # The path to root directory, which contains UCF101 video files (not rawframes)
-lab_server_pc = True
+### Parameters ###############################################
+subject_id = 1
+subjects = {
+    0 : "reconstruction",
+    1 : "classification",
+    2 : "interpolation"   
+}
+
+input_H = 120
+input_W = 160
+batch_size = 4
+lab_server_pc = False
+##########################################################
 
 if lab_server_pc:
     root_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucf101/UCF-101'
@@ -19,7 +31,6 @@ else:
     root_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/videos'
     ann_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/ucfTrainTestSplit'
 
-batch_size = 4
 
 #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 device = "cpu"
@@ -45,13 +56,13 @@ def custom_collate(batch):
 
 
 dataset = UCF101(root= root_dir,
-                    annotation_path= ann_dir,
-                    frames_per_clip=5,
-                    step_between_clips=3,
-                    train=False,
-                    transform=tfs,
-                    num_workers=20
-                    )
+                 annotation_path= ann_dir,
+                 frames_per_clip=5,
+                 step_between_clips=3,
+                 train=False,
+                 transform=tfs,
+                 num_workers=20
+                 )
 
 
 dataloader = torch.utils.data.DataLoader(dataset=dataset,
@@ -64,8 +75,10 @@ dataloader = torch.utils.data.DataLoader(dataset=dataset,
 # example : if batch_size=4, len(data[1])=4
 
 # create model instance
-encoder = torch.load('result/model_encoder_240*240.pth')
-decoder = torch.load('result/model_decoder_240*240.pth')
+folder_name = str(input_H)+'*'+str(input_W)
+folder_path = 'result/' + folder_name
+encoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_encoder_'+folder_name+'.pth')
+decoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_decoder_'+folder_name+'.pth')
 #model = models.EncoderDecoder(3)
  
 encoder.eval()
@@ -77,45 +90,39 @@ decoder.to(device)
 #model.to(device)
 
 # for using multi-gpu
-#encoder = nn.DataParallel(encoder, device_ids=[0,1,2,3])
-#decoder = nn.DataParallel(decoder, device_ids=[0,1,2,3])
-#model = nn.DataParallel(model, device_ids=[0,1,2,3])
+if lab_server_pc:
+    print("Let's use multi-gpu!")
+    encoder = nn.DataParallel(encoder, device_ids=[0,1,2,3])
+    decoder = nn.DataParallel(decoder, device_ids=[0,1,2,3])
 
 show.plot_images(dataloader, encoder, decoder, device)
 
 # loss function
-loss_fn = nn.L1Loss()
+loss_fn = nn.L1Loss() if subject_id==0 else nn.CrossEntropyLoss()
 
 log ={"loss":[]}
 loss_list = []
 
-
+# run test
 for i, batch in enumerate(tqdm(dataloader)):
 
     frame_batch = batch[0].to(device)
-    #label_batch = batch[1].to(device)
-    
-#    for i in range(batch_size):
-#        # get one video frames and its label
-#        frames = frame_batch[i]
-#        label = label_batch[i]
-        
-#        # encode and decode
-#        feature = encoder(frames)
-#        output = decoder(label)
-        
-#        # use loss function and labels to evaluate
-#        loss = loss_fn(output, frames)
-        
+
+    # encode, and decode
     features = encoder(frame_batch)
-    features = features.to(device)
     output = decoder(features)
-    #output = model(frame_batch)
-    loss = loss_fn(output, frame_batch)
+
+    # calculate loss
+    if subject_id == 0:
+        loss = loss_fn(output, frame_batch)
+    elif subject_id == 1:
+        label_batch = batch[1].to(device)
+        loss = loss_fn(output, label_batch)
 
     # clear cash
     del frame_batch
-    #del label_batch
+    if subject_id==1:
+        del label_batch
     del features
     del output
     torch.cuda.empty_cache()
@@ -130,6 +137,6 @@ print("mean_value:\t", mean_value)
 print("std:\t", std)
 
 
-x = range(len(log["loss"]))
-plt.plot(x, log["loss"])
-plt.show()
+#x = range(len(log["loss"]))
+#plt.plot(x, log["loss"])
+#plt.show()
