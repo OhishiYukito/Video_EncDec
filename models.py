@@ -103,7 +103,7 @@ class DecoderToClassification(torch.nn.Module):
     def forward(self, input):
         # input == features == encoder's output (shape = (batch_size, C_out, num_frames, H_out, W_out))
         
-        input = input.permute()         # (batch_size, C, num_frames, H, W) -> (batch_size, num_frames, C, H, W)
+        input = input.permute(0,2,1,3,4)         # (batch_size, C, num_frames, H, W) -> (batch_size, num_frames, C, H, W)
         output = self.flatten(input)    # (batch_size, num_frames, C, H, W) -> (batch_size, num_frames, C*H*W)
         output = self.fc(output)        # (batch_size, num_frames, C*H*W) -> (batch_size, num_frames, len(class_indxs))
         output = torch.sum(output, 1)   # (batch_size, num_frames, len(class_indxs)) -> (batch_size, len(class_indxs))
