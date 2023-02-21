@@ -80,7 +80,10 @@ with torch.no_grad():
     folder_path = 'result/' + folder_name
     encoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_encoder_'+folder_name+'.pth')
     decoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_decoder_'+folder_name+'.pth')
-    #model = models.EncoderDecoder(3)
+    
+    if getattr(encoder, 'device_ids', False):
+        encoder = encoder.module
+        decoder = decoder.module
     
     encoder.eval()
     decoder.eval()
@@ -91,7 +94,7 @@ with torch.no_grad():
     #model.to(device)
 
     # for using multi-gpu
-    if lab_server_pc:
+    if lab_server_pc and subject_id!=1:
         print("Let's use multi-gpu!")
         encoder = nn.DataParallel(encoder, device_ids=[0,1,2,3])
         decoder = nn.DataParallel(decoder, device_ids=[0,1,2,3])
@@ -115,7 +118,7 @@ with torch.no_grad():
 
         # calculate loss
         if subject_id == 0:
-            loss = loss_fn(output, frame_batch)
+            loss = loss_fn(output, frame_batch).cpu()
         elif subject_id == 1:
             label_batch = batch[1].to(device)
             loss = loss_fn(output, label_batch).cpu()

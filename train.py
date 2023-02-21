@@ -99,7 +99,7 @@ decoder.to(device)
 #model.to(device)
 
 # for using multi-gpu
-if lab_server_pc:
+if lab_server_pc and subject_id!=1:
     print("Let's use multi-gpu!")
     encoder = nn.DataParallel(encoder, device_ids=[0,1,2,3])
     decoder = nn.DataParallel(decoder, device_ids=[0,1,2,3])
