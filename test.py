@@ -32,8 +32,8 @@ else:
     ann_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/ucfTrainTestSplit'
 
 
-#device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-device = "cpu"
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+#device = "cpu"
 print(device)
 print("device_count = {}".format(torch.cuda.device_count()))
 
@@ -45,7 +45,7 @@ tfs = transforms.Compose([
             # reshape into (C, T, H, W) for easier convolutions
             transforms.Lambda(lambda x: x.permute(3, 0, 1, 2)),
             # rescale to the most common size
-            transforms.Lambda(lambda x: nn.functional.interpolate(x, (240, 240))),
+            transforms.Lambda(lambda x: nn.functional.interpolate(x, (input_H, input_W))),
 ])
 
 def custom_collate(batch):
@@ -74,69 +74,70 @@ dataloader = torch.utils.data.DataLoader(dataset=dataset,
 # data[1] has batch_size individual class_id.
 # example : if batch_size=4, len(data[1])=4
 
-# create model instance
-folder_name = str(input_H)+'*'+str(input_W)
-folder_path = 'result/' + folder_name
-encoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_encoder_'+folder_name+'.pth')
-decoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_decoder_'+folder_name+'.pth')
-#model = models.EncoderDecoder(3)
- 
-encoder.eval()
-decoder.eval()
-#model.train()
-
-encoder.to(device)
-decoder.to(device)
-#model.to(device)
-
-# for using multi-gpu
-if lab_server_pc:
-    print("Let's use multi-gpu!")
-    encoder = nn.DataParallel(encoder, device_ids=[0,1,2,3])
-    decoder = nn.DataParallel(decoder, device_ids=[0,1,2,3])
-
-show.plot_images(dataloader, encoder, decoder, device)
-
-# loss function
-loss_fn = nn.L1Loss() if subject_id==0 else nn.CrossEntropyLoss()
-
-log ={"loss":[]}
-loss_list = []
-
-# run test
-for i, batch in enumerate(tqdm(dataloader)):
-
-    frame_batch = batch[0].to(device)
-
-    # encode, and decode
-    features = encoder(frame_batch)
-    output = decoder(features)
-
-    # calculate loss
-    if subject_id == 0:
-        loss = loss_fn(output, frame_batch)
-    elif subject_id == 1:
-        label_batch = batch[1].to(device)
-        loss = loss_fn(output, label_batch)
-
-    # clear cash
-    del frame_batch
-    if subject_id==1:
-        del label_batch
-    del features
-    del output
-    torch.cuda.empty_cache()
+with torch.no_grad():
+    # create model instance
+    folder_name = str(input_H)+'*'+str(input_W)
+    folder_path = 'result/' + folder_name
+    encoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_encoder_'+folder_name+'.pth')
+    decoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_decoder_'+folder_name+'.pth')
+    #model = models.EncoderDecoder(3)
     
-    if i % 100 == 0:
-        log["loss"].append(float(loss))
-    loss_list.append(loss)
-    
-mean_value = np.mean(loss_list)
-std = np.std(loss_list)
-print("mean_value:\t", mean_value)
-print("std:\t", std)
+    encoder.eval()
+    decoder.eval()
+    #model.train()
+
+    encoder.to(device)
+    decoder.to(device)
+    #model.to(device)
+
+    # for using multi-gpu
+    if lab_server_pc:
+        print("Let's use multi-gpu!")
+        encoder = nn.DataParallel(encoder, device_ids=[0,1,2,3])
+        decoder = nn.DataParallel(decoder, device_ids=[0,1,2,3])
+
+    #show.plot_images(dataloader, encoder, decoder, device)
+
+    # loss function
+    loss_fn = nn.L1Loss() if subject_id==0 else nn.CrossEntropyLoss()
+
+    log ={"loss":[]}
+    loss_list = []
+
+    # run test
+    for i, batch in enumerate(tqdm(dataloader)):
+
+        frame_batch = batch[0].to(device)
+
+        # encode, and decode
+        features = encoder(frame_batch)
+        output = decoder(features)
+
+        # calculate loss
+        if subject_id == 0:
+            loss = loss_fn(output, frame_batch)
+        elif subject_id == 1:
+            label_batch = batch[1].to(device)
+            loss = loss_fn(output, label_batch).cpu()
+
+        # clear cash
+        del frame_batch
+        if subject_id==1:
+            del label_batch
+        del features
+        del output
+        torch.cuda.empty_cache()
+        
+        if i % 100 == 0:
+            log["loss"].append(float(loss))
+        loss_list.append(loss)
+        
+    mean_value = np.mean(loss_list)
+    std = np.std(loss_list)
+    print("mean_value:\t", mean_value)
+    print("std:\t", std)
 
 
-#x = range(len(log["loss"]))
-#plt.plot(x, log["loss"])
-#plt.show()
+    #x = range(len(log["loss"]))
+    #plt.plot(x, log["loss"])
+    #plt.show()
