@@ -8,11 +8,12 @@ import matplotlib.pyplot as plt
 import os
 
 ### Parameters ###############################################
-subject_id = 1
+subject_id = 3
 subjects = {
     0 : "reconstruction",
     1 : "classification",
-    2 : "interpolation"   
+    2 : "interpolation",
+    3 : "mix_recon-class",   
 }
 
 input_H = 120
@@ -81,13 +82,26 @@ dataloader = torch.utils.data.DataLoader(dataset=dataset,
 # create model instance
 encoder = models.Encoder(3)
 if subject_id == 0:
+    # Reconstruction
     decoder = models.DecoderToFrames(3)
 elif subject_id == 1:
+    # Classification
     # get feature's shape
     encoder.eval()
     example = next(iter(dataloader))[0]
     example = encoder(example)
     decoder = models.DecoderToClassification(input_shape= example.shape, class_indxs= class_indxs)
+elif subject_id == 2:
+    # Interpolation
+    pass
+elif subject_id == 3:
+    # Mix (Reconstruction & Classification)
+    folder_name = str(input_H)+'*'+str(input_W)
+    folder_path = 'result/' + folder_name
+    path_recon = folder_path +'/'+ subjects[0]+'_decoder_'+folder_name+'.pth'
+    path_class = folder_path +'/'+ subjects[1]+'_decoder_'+folder_name+'.pth'
+    decoder = models.DecoderMixReconClass(path_recon, path_class)
+    
 #model = models.EncoderDecoder(3)
  
 encoder.train()
@@ -99,7 +113,9 @@ decoder.to(device)
 #model.to(device)
 
 # for using multi-gpu
-if lab_server_pc and subject_id!=1:
+if lab_server_pc and subject_id!=1 and subject_id!=3:
+    # When subject_id=1(classification), it's faster than the case of using multi-gpu to using single-gpu.
+    # When subject_id=3(mix), the code will be more complex in the case of using multi-gpu. 
     print("Let's use multi-gpu!")
     encoder = nn.DataParallel(encoder, device_ids=[0,1,2,3])
     decoder = nn.DataParallel(decoder, device_ids=[0,1,2,3])
@@ -107,9 +123,17 @@ if lab_server_pc and subject_id!=1:
 
 
 # loss function and optimizer
-loss_fn = nn.L1Loss() if subject_id==0 else nn.CrossEntropyLoss()
-optimizer_decoder = torch.optim.SGD(decoder.parameters(), lr=1e-3)
+if subject_id == 0:
+    loss_fn = nn.L1Loss()
+elif subject_id == 1:
+    loss_fn = nn.CrossEntropyLoss()
+elif subject_id == 3:
+    loss_fn_recon = nn.L1Loss()
+    loss_fn_class = nn.CrossEntropyLoss()
+    
 optimizer_encoder = torch.optim.SGD(encoder.parameters(), lr=1e-3)
+if subject_id!=3:
+    optimizer_decoder = torch.optim.SGD(decoder.parameters(), lr=1e-3)
 #optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
 
 log ={"loss":[]}
@@ -127,19 +151,30 @@ for i, batch in enumerate(tqdm(dataloader)):
         loss = loss_fn(output, frame_batch)
     elif subject_id == 1:
         loss = loss_fn(output, label_batch)
+    elif subject_id == 2:
+        pass
+    elif subject_id == 3:
+        # loss_recon + loss_class
+        loss = loss_fn_recon(output[0], frame_batch) + loss_fn_class(output[1], label_batch)
+        
+        # normalization before sum
+        
+        
         
     # backpropagation
-    optimizer_decoder.zero_grad()
     optimizer_encoder.zero_grad()
+    if subject_id!=3:
+        optimizer_decoder.zero_grad()
     #optimizer.zero_grad()
     loss.backward()
-    optimizer_decoder.step()
     optimizer_encoder.step()
+    if subject_id!=3:
+        optimizer_decoder.step()
     #optimizer.step()
 
     # clear cash
     del frame_batch
-    if subject_id==1:
+    if subject_id==1 or 3:
         del label_batch
     del features
     del output

@@ -113,3 +113,32 @@ class DecoderToClassification(torch.nn.Module):
         
         return output
         
+        
+class DecoderMixReconClass(torch.nn.Module):
+    # This class contains DecoderToFrames, DecoderToClassification instances which were trained.
+    def __init__(self, path_recon, path_class):
+        super().__init__()
+        self.decoder_recon = torch.load(path_recon)
+        self.decoder_class = torch.load(path_class)
+        
+        # Dataparallel
+        if getattr(self.decoder_recon, 'device_ids', False):
+            self.decoder_recon = self.decoder_recon.module
+        if getattr(self.decoder_class, 'device_ids', False):
+            self.decoder_class = self.decoder_class.module
+        
+    def train(self):
+        # In this case, only encoder will be trained. So decoders are set as "eval" mode.
+        self.decoder_recon.eval()
+        self.decoder_class.eval()
+    
+    def to(self, device):
+        self.decoder_recon.to(device)
+        self.decoder_class.to(device)
+        
+    def forward(self, input):
+        with torch.no_grad():
+            output_recon = self.decoder_recon(input)
+            output_class = self.decoder_class(input)
+        
+        return [output_recon, output_class]
