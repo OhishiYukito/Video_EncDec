@@ -127,6 +127,12 @@ class DecoderMixReconClass(torch.nn.Module):
         if getattr(self.decoder_class, 'device_ids', False):
             self.decoder_class = self.decoder_class.module
         
+        for param in self.decoder_recon.parameters():
+            param.requires_grad = False
+        for param in self.decoder_class.parameters():
+            param.requires_grad = False
+        
+        
     def train(self):
         # In this case, only encoder will be trained. So decoders are set as "eval" mode.
         self.decoder_recon.eval()
@@ -141,8 +147,7 @@ class DecoderMixReconClass(torch.nn.Module):
         self.decoder_class.to(device)
         
     def forward(self, input):
-        with torch.no_grad():
-            output_recon = self.decoder_recon(input)
-            output_class = self.decoder_class(input)
+        output_recon = self.decoder_recon(input)
+        output_class = self.decoder_class(input)
         
         return [output_recon, output_class]
