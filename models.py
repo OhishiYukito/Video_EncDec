@@ -132,6 +132,10 @@ class DecoderMixReconClass(torch.nn.Module):
         self.decoder_recon.eval()
         self.decoder_class.eval()
     
+    def eval(self):
+        self.decoder_recon.eval()
+        self.decoder_class.eval()
+    
     def to(self, device):
         self.decoder_recon.to(device)
         self.decoder_class.to(device)

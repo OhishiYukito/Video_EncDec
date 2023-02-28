@@ -6,6 +6,7 @@ from torchvision.datasets import UCF101
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
+import pickle
 
 ### Parameters ###############################################
 subject_id = 3
@@ -136,7 +137,7 @@ if subject_id!=3:
     optimizer_decoder = torch.optim.SGD(decoder.parameters(), lr=1e-3)
 #optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
 
-log ={"loss":[]}
+log ={"loss":[], "loss_recon":[], "loss_class":[]}
 
 
 for i, batch in enumerate(tqdm(dataloader)):
@@ -155,7 +156,9 @@ for i, batch in enumerate(tqdm(dataloader)):
         pass
     elif subject_id == 3:
         # loss_recon + loss_class
-        loss = loss_fn_recon(output[0], frame_batch) + loss_fn_class(output[1], label_batch)
+        loss_recon = loss_fn_recon(output[0], frame_batch)
+        loss_class = loss_fn_class(output[1], label_batch)
+        loss = loss_recon + loss_class
         
         # normalization before sum
         
@@ -174,14 +177,17 @@ for i, batch in enumerate(tqdm(dataloader)):
 
     # clear cash
     del frame_batch
-    if subject_id==1 or 3:
-        del label_batch
+    del label_batch
     del features
     del output
     torch.cuda.empty_cache()
     
     if i % 100 == 0:
-        log["loss"].append(float(loss))
+        if subject_id!=3:
+            log["loss"].append(float(loss))
+        else:
+            log["loss_recon"].append(float(loss_recon))
+            log["loss_class"].append(float(loss_class))
 
 
 folder_name = str(input_H)+'*'+str(input_W)
@@ -189,6 +195,9 @@ folder_path = 'result/' + folder_name
 os.makedirs(folder_path, exist_ok=True)
 torch.save(encoder, folder_path +'/'+ subjects[subject_id]+'_encoder_'+folder_name+'.pth')
 torch.save(decoder, folder_path +'/'+ subjects[subject_id]+'_decoder_'+folder_name+'.pth')
+with open(folder_path +'/'+ subjects[subject_id]+'_train-history_'+folder_name+'.pkl', 'wb') as f:
+    pickle.dump(log, f)
+
 #torch.save(model, 'model_encoder_decoder.pth')
 
 x = range(len(log["loss"]))
