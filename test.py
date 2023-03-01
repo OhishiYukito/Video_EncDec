@@ -12,7 +12,7 @@ import show_results as show
 # create Dataset object and Dataloader
 # The path to root directory, which contains UCF101 video files (not rawframes)
 ### Parameters ###############################################
-subject_id = 1
+subject_id = 3
 subjects = {
     0 : "reconstruction",
     1 : "classification",
@@ -22,8 +22,8 @@ subjects = {
 
 input_H = 120
 input_W = 160
-batch_size = 4
-lab_server_pc = False
+batch_size = 8
+lab_server_pc = True
 ##########################################################
 
 if lab_server_pc:
@@ -137,7 +137,11 @@ with torch.no_grad():
             loss_recon = loss_fn_recon(output[0], frame_batch)
             loss_class = loss_fn_class(output[1], label_batch)
             loss = [loss_recon, loss_class]
-            
+
+        #if i % 100 == 0:
+            #log["loss"].append(float(loss))
+        loss_list.append(loss)    
+
         # clear cash
         del frame_batch
         del label_batch
@@ -145,26 +149,39 @@ with torch.no_grad():
         del output
         torch.cuda.empty_cache()
         
-        if i % 100 == 0:
-            log["loss"].append(float(loss))
-        loss_list.append(loss)
+
         
     with open(folder_path +'/'+ subjects[subject_id]+'_evaluate_'+folder_name+'.pkl', 'wb') as f:
         pkl.dump(loss_list, f)
         
+    if subject_id==3:
+        loss_recon = [loss[0] for loss in loss_list]
+        mean_value = np.mean(loss_recon)
+        std = np.std(loss_recon)
+        print("mean_value(recon):\t", mean_value)
+        print("std(recon):\t", std)
+
+        loss_class = [loss[1] for loss in loss_list]
+        mean_value = np.mean(loss_class)
+        std = np.std(loss_class)
+        print("mean_value(class):\t", mean_value)
+        print("std(class):\t", std)
+
+        loss_list = [loss[0]+loss[1] for loss in loss_list]
+
     mean_value = np.mean(loss_list)
     std = np.std(loss_list)
     print("mean_value:\t", mean_value)
     print("std:\t", std)
     
+    #if subject_id==3:
+    #    x = range(0, len(log["loss"])*100, 100)
+    #    y_recon = [data[0] for data in loss_list]
+    #    y_class = [data[1] for data in loss_list]
+    #    y_sum = [data[0]+data[1] for data in loss_list]
+    #    plt.plot(x, y_recon)
+    #    plt.plot(x, y_class)
     
-    if subject_id==3:
-        x = range(0, len(log["loss"])*100, 100)
-        y_recon = [data[0] for data in loss_list]
-        y_class = [data[1] for data in loss_list]
-        y_sum = [data[0]+data[1] for data in loss_list]
-        plt.plot(x, y_recon)
-        plt.plot(x, y_class)
     #x = range(len(log["loss"]))
     #plt.plot(x, log["loss"])
     #plt.show()
