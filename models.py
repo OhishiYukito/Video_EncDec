@@ -151,3 +151,34 @@ class DecoderMixReconClass(torch.nn.Module):
         output_class = self.decoder_class(input)
         
         return [output_recon, output_class]
+    
+    
+class DecoderAlternately(torch.nn.Module):
+    def __init__(self, decoder1, decoder2):
+        super().__init__()
+        self.decoder1 = decoder1
+        self.decoder2 = decoder2
+    
+    def train(self):
+        # In this case, only encoder will be trained. So decoders are set as "eval" mode.
+        self.decoder1.train()
+        self.decoder2.train()
+    
+    def eval(self):
+        self.decoder1.eval()
+        self.decoder2.eval()
+    
+    def to(self, device):
+        self.decoder1.to(device)
+        self.decoder2.to(device)
+        
+    def forward(self, input, decoder_id):
+        if decoder_id == 1:
+            output = self.decoder1(input)
+        elif decoder_id == 2:
+            output = self.decoder2(input)
+        elif decoder_id == 3:
+            # train both decoders
+            output = [self.decoder1(input), self.decoder2(input)]
+
+        return output
