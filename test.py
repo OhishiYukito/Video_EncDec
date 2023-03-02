@@ -128,15 +128,18 @@ with torch.no_grad():
         # calculate loss
         if subject_id == 0:
             loss = loss_fn(output, frame_batch)
+            loss = loss.cpu()
         elif subject_id == 1:
             loss = loss_fn(output, label_batch)
+            loss = loss.cpu()
         elif subject_id == 2:
             pass
         elif subject_id == 3:
             # loss_recon + loss_class
             loss_recon = loss_fn_recon(output[0], frame_batch)
             loss_class = loss_fn_class(output[1], label_batch)
-            loss = [loss_recon, loss_class]
+
+            loss = [loss_recon.cpu(), loss_class.cpu()]
 
         #if i % 100 == 0:
             #log["loss"].append(float(loss))
