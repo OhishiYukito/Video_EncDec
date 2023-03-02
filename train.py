@@ -9,12 +9,13 @@ import os
 import pickle
 
 ### Parameters ###############################################
-subject_id = 3
+subject_id = 4
 subjects = {
     0 : "reconstruction",
     1 : "classification",
     2 : "interpolation",
-    3 : "mix_recon-class",   
+    3 : "mix_recon-class",
+    4 : "alternately_recon-class"
 }
 
 input_H = 120
@@ -32,7 +33,7 @@ else:
     root_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/videos'
     ann_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/ucfTrainTestSplit'
 
-if subject_id == 1:
+if subject_id == 1 or subject_id == 4:
     # class_index dictionary
     class_indxs = {}
     with open("dataset/ucfTrainTestSplit/classInd.txt") as f:
@@ -102,6 +103,15 @@ elif subject_id == 3:
     path_recon = folder_path +'/'+ subjects[0]+'_decoder_'+folder_name+'.pth'
     path_class = folder_path +'/'+ subjects[1]+'_decoder_'+folder_name+'.pth'
     decoder = models.DecoderMixReconClass(path_recon, path_class)
+elif subject_id == 4:
+    # train Reconstruction & Classification Decoders and Encoder Alternately 
+    decoder1 = models.DecoderToFrames(3)
+    encoder.eval()
+    example = next(iter(dataloader))[0]
+    example = encoder(example)
+    decoder2 = models.DecoderToClassification(input_shape= example.shape, class_indxs= class_indxs)
+    decoder = models.DecoderAlternately(decoder1, decoder2)
+
     
 #model = models.EncoderDecoder(3)
  
@@ -114,7 +124,7 @@ decoder.to(device)
 #model.to(device)
 
 # for using multi-gpu
-if lab_server_pc and subject_id!=1 and subject_id!=3:
+if lab_server_pc and subject_id!=1 and subject_id!=3 and subject_id!=4:
     # When subject_id=1(classification), it's faster than the case of using multi-gpu to using single-gpu.
     # When subject_id=3(mix), the code will be more complex in the case of using multi-gpu. 
     print("Let's use multi-gpu!")
@@ -124,21 +134,30 @@ if lab_server_pc and subject_id!=1 and subject_id!=3:
 
 
 # loss function and optimizer
-if subject_id == 0:
+if subject_id==0:
     loss_fn = nn.L1Loss()
-elif subject_id == 1:
+elif subject_id==1:
     loss_fn = nn.CrossEntropyLoss()
-elif subject_id == 3:
+elif subject_id==3 or subject_id==4:
     loss_fn_recon = nn.L1Loss()
     loss_fn_class = nn.CrossEntropyLoss()
     
 optimizer_encoder = torch.optim.SGD(encoder.parameters(), lr=1e-3)
 if subject_id!=3:
-    optimizer_decoder = torch.optim.SGD(decoder.parameters(), lr=1e-3)
+    # need the optimizer for decoder!
+    if subject_id==4:
+        optimizer_decoder1 = torch.optim.SGD(decoder.decoder1.parameters(), lr=1e-3)
+        optimizer_decoder2 = torch.optim.SGD(decoder.decoder2.parameters(), lr=1e-3)
+    else:
+        optimizer_decoder = torch.optim.SGD(decoder.parameters(), lr=1e-3)
+        
 #optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
 
 log ={"loss":[], "loss_recon":[], "loss_class":[]}
 
+#alternately = True      # determine to train two decoders alternately/simultaneously
+alternately_count = 0
+alternately_steps = 1
 
 for i, batch in enumerate(tqdm(dataloader)):
 
@@ -146,8 +165,16 @@ for i, batch in enumerate(tqdm(dataloader)):
     label_batch = batch[1].to(device)   # (batch_size)
         
     features = encoder(frame_batch)     #(batch_size, C_feature, num_frames, H, W)
-    output = decoder(features)
-    
+    if subject_id!=4:
+        output = decoder(features)
+    elif  subject_id==4:
+        # train decoders alternately
+        decoder_id = ((alternately_count//alternately_steps) % 2) + 1
+        output = decoder(features, decoder_id)
+    elif subject_id==5:
+        # train decoders simultaneously
+        output = decoder(features, 3)
+
     if subject_id == 0:
         loss = loss_fn(output, frame_batch)
     elif subject_id == 1:
@@ -162,17 +189,52 @@ for i, batch in enumerate(tqdm(dataloader)):
         
         # normalization before sum
         
+    elif subject_id == 4:
+        if decoder_id == 1:
+            # used decoder1, so loss function is for reconstruction
+            loss = loss_fn_recon(output, frame_batch)
+        elif decoder_id == 2:
+            # used decoder2, so loss function is for classification
+            loss = loss_fn_class(output, label_batch)
+        alternately_count += 1
+    elif subject_id == 5:
+        # loss_recon + loss_class
+        loss_recon = loss_fn_recon(output[0], frame_batch)
+        loss_class = loss_fn_class(output[1], label_batch)
+        loss = loss_recon + loss_class
         
         
     # backpropagation
     optimizer_encoder.zero_grad()
-    if subject_id!=3:
+    if subject_id!=3 and subject_id!=4:
         optimizer_decoder.zero_grad()
+    elif subject_id==4:
+        # alternately
+        if decoder_id == 1:
+            optimizer_decoder1.zero_grad()
+        elif decoder_id == 2:
+            optimizer_decoder2.zero_grad()
+    elif subject_id==5:
+        # simultaneously
+        optimizer_decoder1.zero_grad()
+        optimizer_decoder2.zero_grad()
+
+            
     #optimizer.zero_grad()
     loss.backward()
     optimizer_encoder.step()
-    if subject_id!=3:
+    if subject_id!=3 and subject_id!=4:
         optimizer_decoder.step()
+    elif subject_id==4:
+        # alternately
+        if decoder_id == 1:
+            optimizer_decoder1.step()
+        elif decoder_id == 2:
+            optimizer_decoder2.step()
+    elif subject_id==5:
+        # simultaneously
+        optimizer_decoder1.step()
+        optimizer_decoder2.step()            
     #optimizer.step()
 
     # clear cash
@@ -183,12 +245,22 @@ for i, batch in enumerate(tqdm(dataloader)):
     torch.cuda.empty_cache()
     
     if i % 100 == 0:
-        if subject_id!=3:
+        if subject_id!=3 and subject_id!=4:
             log["loss"].append(float(loss))
-        else:
+        elif subject_id==3:
             log["loss_recon"].append(float(loss_recon))
             log["loss_class"].append(float(loss_class))
-
+        elif subject_id==4:
+            # alternately
+            if decoder_id == 1:
+                log["loss_recon"].append(float(loss))
+            elif decoder_id == 2:
+                log["loss_class"].append(float(loss))
+        elif subject_id == 5:
+            # simultaneously
+            log["loss_recon"].append(float(loss_recon))
+            log["loss_class"].append(float(loss_class))
+                
 
 folder_name = str(input_H)+'*'+str(input_W)
 folder_path = 'result/' + folder_name
