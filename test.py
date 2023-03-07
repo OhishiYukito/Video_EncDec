@@ -12,12 +12,13 @@ import show_results as show
 # create Dataset object and Dataloader
 # The path to root directory, which contains UCF101 video files (not rawframes)
 ### Parameters ###############################################
-subject_id = 3
+subject_id = 4
 subjects = {
     0 : "reconstruction",
     1 : "classification",
     2 : "interpolation",
     3 : "mix_recon-class",
+    4 : "alternately_recon-class",
 }
 
 input_H = 120
@@ -94,7 +95,7 @@ with torch.no_grad():
     decoder.to(device)
 
     # for using multi-gpu
-    if lab_server_pc and subject_id!=1 and subject_id!=3:
+    if lab_server_pc and subject_id!=1 and subject_id!=3 and subject_id!=4:
         # When subject_id=1(classification), it's faster than the case of using multi-gpu to using single-gpu.
         # When subject_id=3(mix), the code will be more complex in the case of using multi-gpu. 
         print("Let's use multi-gpu!")
@@ -108,11 +109,11 @@ with torch.no_grad():
         loss_fn = nn.L1Loss()
     elif subject_id == 1:
         loss_fn = nn.CrossEntropyLoss()
-    elif subject_id == 3:
+    elif subject_id == 3 or subject_id == 4:
         loss_fn_recon = nn.L1Loss()
         loss_fn_class = nn.CrossEntropyLoss()
 
-    log ={"loss":[]}
+    #log ={"loss":[]}
     loss_list = []
 
     # run test
@@ -123,7 +124,11 @@ with torch.no_grad():
 
         # encode, and decode
         features = encoder(frame_batch)
-        output = decoder(features)
+        if subject_id == 4:
+            # get 2 decoder's output
+            output = decoder(features, 3)
+        else:
+            output = decoder(features)
 
         # calculate loss
         if subject_id == 0:
@@ -134,7 +139,7 @@ with torch.no_grad():
             loss = loss.cpu()
         elif subject_id == 2:
             pass
-        elif subject_id == 3:
+        elif subject_id == 3 or subject_id==4:
             # loss_recon + loss_class
             loss_recon = loss_fn_recon(output[0], frame_batch)
             loss_class = loss_fn_class(output[1], label_batch)
@@ -157,7 +162,7 @@ with torch.no_grad():
     with open(folder_path +'/'+ subjects[subject_id]+'_evaluate_'+folder_name+'.pkl', 'wb') as f:
         pkl.dump(loss_list, f)
         
-    if subject_id==3:
+    if subject_id==3 or subject_id==4:
         loss_recon = [loss[0] for loss in loss_list]
         mean_value = np.mean(loss_recon)
         std = np.std(loss_recon)
