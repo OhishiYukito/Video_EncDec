@@ -7,79 +7,37 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
 import pickle
+import tools.initial_process as init
 
 ### Parameters ###############################################
-subject_id = 4
+subject_id = 0
 subjects = {
     0 : "reconstruction",
     1 : "classification",
     2 : "interpolation",
     3 : "mix_recon-class",
-    4 : "alternately_recon-class"
+    4 : "alternately_recon-class",
 }
 
 input_H = 120
 input_W = 160
 batch_size = 8
-lab_server_pc = False
+lab_server_pc = True
+
+
+folder_name_id = 0
+folder_name_list = {
+    0 : str(input_H)+'*'+str(input_W),
+    1 : "CNN_256*n",
+}
 ##########################################################
 
-# create Dataset object and Dataloader
-# The path to root directory, which contains UCF101 video files (not rawframes)
-if lab_server_pc:
-    root_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucf101/UCF-101'
-    ann_dir = '/home/all/Desktop/Ohishi/Video_EncDec/dataset/ucfTrainTestSplit'
-else:
-    root_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/videos'
-    ann_dir = '/home/ohishiyukito/Documents/GraduationResearch/data/ucf101/ucfTrainTestSplit'
-
-if subject_id == 1 or subject_id == 4:
-    # class_index dictionary
-    class_indxs = {}
-    with open("dataset/ucfTrainTestSplit/classInd.txt") as f:
-        for line in f:
-            (key, val) = line.split()
-            class_indxs[int(key)] = val
-            
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(device)
-print("device_count = {}".format(torch.cuda.device_count()))
-
-
-tfs = transforms.Compose([
-            # TODO: this should be done by a video-level transfrom when PyTorch provides transforms.ToTensor() for video
-            # scale in [0, 1] of type float
-            transforms.Lambda(lambda x: x / 255.),
-            # reshape into (C, T, H, W) for easier convolutions
-            transforms.Lambda(lambda x: x.permute(3, 0, 1, 2)),
-            # rescale to the most common size
-            transforms.Lambda(lambda x: nn.functional.interpolate(x, (input_H, input_W))),
-])
-
-def custom_collate(batch):
-    filtered_batch = []
-    for video, _, label in batch:
-        filtered_batch.append((video, label))
-    return torch.utils.data.dataloader.default_collate(filtered_batch)
-
-
-dataset = UCF101(root= root_dir,
-                 annotation_path= ann_dir,
-                 frames_per_clip=5,
-                 step_between_clips=3,
-                 train=True,
-                 transform=tfs,
-                 num_workers=20)
-
-dataloader = torch.utils.data.DataLoader(dataset=dataset,
-                                         batch_size=batch_size,
-                                         shuffle=False,
-                                         collate_fn=custom_collate, 
-                                         num_workers=1)
-# data : ((batch_size, C, num_frames, H, W), (class_ids))
-# data[1] has batch_size individual class_id.
-# example : if batch_size=4, len(data[1])=4
+class_indxs, device, dataloader = init.initial_process(lab_server_pc,
+                                                       subject_id, 
+                                                       input_H, 
+                                                       input_W, 
+                                                       batch_size, 
+                                                       train=True)
 
 # create model instance
 encoder = models.Encoder(3)
@@ -98,7 +56,7 @@ elif subject_id == 2:
     pass
 elif subject_id == 3:
     # Mix (Reconstruction & Classification)
-    folder_name = str(input_H)+'*'+str(input_W)
+    folder_name = folder_name_list[folder_name_id]
     folder_path = 'result/' + folder_name
     path_recon = folder_path +'/'+ subjects[0]+'_decoder_'+folder_name+'.pth'
     path_class = folder_path +'/'+ subjects[1]+'_decoder_'+folder_name+'.pth'
@@ -262,7 +220,7 @@ for i, batch in enumerate(tqdm(dataloader)):
             log["loss_class"].append(float(loss_class))
                 
 
-folder_name = str(input_H)+'*'+str(input_W)
+folder_name = folder_name_list[folder_name_id]
 folder_path = 'result/' + folder_name
 os.makedirs(folder_path, exist_ok=True)
 torch.save(encoder, folder_path +'/'+ subjects[subject_id]+'_encoder_'+folder_name+'.pth')
