@@ -19,8 +19,8 @@ subjects = {
     4 : "alternately_recon-class",
 }
 
-input_H = 120
-input_W = 160
+input_H = 192
+input_W = 256
 batch_size = 8
 lab_server_pc = True
 

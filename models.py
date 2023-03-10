@@ -2,37 +2,41 @@ import torch
 
 
 class Encoder(torch.nn.Module):
-    def __init__(self, num_channel):
+    def __init__(self, num_channel, kernel_size=5, pool_size=3):
         super(Encoder, self).__init__()
         
         # CNN for a single frame (spatial information)
         self.cnn1 = torch.nn.Conv3d(num_channel, 16, 3, stride=1, padding=1, padding_mode='zeros')
-        self.cnn2 = torch.nn.Conv3d(16, 32, 3, stride=1, padding=1, padding_mode='zeros')
-        self.cnn3 = torch.nn.Conv3d(32, 64, 3, stride=1, padding=1, padding_mode='zeros')
-        self.cnn4 = torch.nn.Conv3d(64, 128, 3, stride=1, padding=1, padding_mode='zeros')
-        self.cnn5 = torch.nn.Conv3d(128, 256, 3, stride=1, padding=1, padding_mode='zeros')
-        self.cnn6 = torch.nn.Conv3d(256, 512, 3, stride=1, padding=1, padding_mode='zeros')
+        self.cnn2 = torch.nn.Conv3d(16, 32, kernel_size, stride=1, padding=1, padding_mode='zeros')
+        self.cnn3 = torch.nn.Conv3d(32, 64, kernel_size, stride=1, padding=1, padding_mode='zeros')
+        self.cnn4 = torch.nn.Conv3d(64, 128, kernel_size, stride=1, padding=1, padding_mode='zeros')
+        self.cnn5 = torch.nn.Conv3d(128, 256, kernel_size, stride=1, padding=1, padding_mode='zeros')
+        self.cnn6 = torch.nn.Conv3d(256, 512, kernel_size, stride=1, padding=1, padding_mode='zeros')
         self.spatial_sequence = torch.nn.Sequential(
             self.cnn1,
             torch.nn.BatchNorm3d(16),
             torch.nn.ReLU(),
-            #torch.nn.MaxPool3d((1,3,3), stride=1),
+            #torch.nn.MaxPool3d(kernel_size=pool_size, stride=1),
+            
             self.cnn2,
             torch.nn.BatchNorm3d(32),
             torch.nn.ReLU(),
-            #torch.nn.MaxPool3d((1,3,3), stride=1),
+            #torch.nn.MaxPool3d(kernel_size=pool_size, stride=1),
+            
             self.cnn3,
             torch.nn.BatchNorm3d(64),
             torch.nn.ReLU(),
-            #torch.nn.MaxPool3d((1,3,3), stride=1),
+            #torch.nn.MaxPool3d(kernel_size=pool_size, stride=1),
+            
             self.cnn4,
             torch.nn.BatchNorm3d(128),
             torch.nn.ReLU(),
-            #torch.nn.MaxPool3d((1,3,3), stride=1),
+            #torch.nn.MaxPool3d(kernel_size=pool_size, stride=1),
+            
             self.cnn5,
             torch.nn.BatchNorm3d(256),
             torch.nn.ReLU(),
-            #torch.nn.MaxPool3d((1,3,3), stride=1),
+            #torch.nn.MaxPool3d(kernel_size=pool_size, stride=1),
             #self.cnn6,
             #torch.nn.BatchNorm3d(512),
             #torch.nn.ReLU(),
@@ -48,24 +52,24 @@ class Encoder(torch.nn.Module):
         
         
 class DecoderToFrames(torch.nn.Module):
-    def __init__(self, num_channel):
+    def __init__(self, num_channel, kernel_size=5, pool_size=3):
         super().__init__()
         
         # decode from hidden_state to 3d image
-        self.decnn6 = torch.nn.ConvTranspose3d(512, 256, 3, stride=1, padding=1, padding_mode='zeros')
-        self.decnn5 = torch.nn.ConvTranspose3d(256, 128, 3, stride=1, padding=1, padding_mode='zeros')
-        self.decnn4 = torch.nn.ConvTranspose3d(128, 64, 3, stride=1, padding=1, padding_mode='zeros')
-        self.decnn3 = torch.nn.ConvTranspose3d(64, 32, 3, stride=1, padding=1, padding_mode='zeros')
-        self.decnn2 = torch.nn.ConvTranspose3d(32, 16, 3, stride=1, padding=1, padding_mode='zeros')
+        self.decnn6 = torch.nn.ConvTranspose3d(512, 256, kernel_size, stride=1, padding=1, padding_mode='zeros')
+        self.decnn5 = torch.nn.ConvTranspose3d(256, 128, kernel_size, stride=1, padding=1, padding_mode='zeros')
+        self.decnn4 = torch.nn.ConvTranspose3d(128, 64, kernel_size, stride=1, padding=1, padding_mode='zeros')
+        self.decnn3 = torch.nn.ConvTranspose3d(64, 32, kernel_size, stride=1, padding=1, padding_mode='zeros')
+        self.decnn2 = torch.nn.ConvTranspose3d(32, 16, kernel_size, stride=1, padding=1, padding_mode='zeros')
         self.decnn1 = torch.nn.ConvTranspose3d(16, num_channel, 3, stride=1, padding=1, padding_mode='zeros')
 
         self.decode_sequence = torch.nn.Sequential(
             #self.decnn6, torch.nn.BatchNorm3d(256), torch.nn.ReLU(),
-            self.decnn5, torch.nn.BatchNorm3d(128), torch.nn.ReLU(),
-            self.decnn4, torch.nn.BatchNorm3d(64), torch.nn.ReLU(),
-            self.decnn3, torch.nn.BatchNorm3d(32), torch.nn.ReLU(),
-            self.decnn2, torch.nn.BatchNorm3d(16), torch.nn.ReLU(),
-            self.decnn1, torch.nn.BatchNorm3d(num_channel), torch.nn.ReLU(),
+            self.decnn5, torch.nn.BatchNorm3d(128), torch.nn.ReLU(), #torch.nn.MaxUnpool3d(kernel_size=pool_size, stride=1),
+            self.decnn4, torch.nn.BatchNorm3d(64), torch.nn.ReLU(), #torch.nn.MaxUnpool3d(kernel_size=pool_size, stride=1),
+            self.decnn3, torch.nn.BatchNorm3d(32), torch.nn.ReLU(), #torch.nn.MaxUnpool3d(kernel_size=pool_size, stride=1),
+            self.decnn2, torch.nn.BatchNorm3d(16), torch.nn.ReLU(), #torch.nn.MaxUnpool3d(kernel_size=pool_size, stride=1),
+            self.decnn1, torch.nn.BatchNorm3d(num_channel), torch.nn.ReLU(), #torch.nn.MaxUnpool3d(kernel_size=pool_size, stride=1)
         )
         
     def forward(self, input):
