@@ -25,12 +25,11 @@ input_W = 160
 batch_size = 8
 lab_server_pc = True
 
-folder_name_id = 0
+base_model_id = 1
 folder_name_list = {
-    0 : str(input_H)+'*'+str(input_W),
-    1 : "CNN_256*n",
+    0 : "Conv3d",       # if base_model is Conv3d
+    1 : "(2+1)D",       # if base_model is Conv2Plus1D
 }
-
 
 ##########################################################
 
@@ -43,10 +42,11 @@ class_indxs, device, dataloader = init.initial_process(lab_server_pc,
 
 with torch.no_grad():
     # create model instance
-    folder_name = folder_name_list[folder_name_id]
+    folder_name = folder_name_list[base_model_id]
+    input_shape = str(input_H)+'*'+str(input_W)
     folder_path = 'result/' + folder_name
-    encoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_encoder_'+folder_name+'.pth')
-    decoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_decoder_'+folder_name+'.pth')
+    encoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_encoder_'+input_shape+'.pth')
+    decoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_decoder_'+input_shape+'.pth')
     
     if getattr(encoder, 'device_ids', False):
         encoder = encoder.module
@@ -121,7 +121,7 @@ with torch.no_grad():
         
 
         
-    with open(folder_path +'/'+ subjects[subject_id]+'_evaluate_'+folder_name+'.pkl', 'wb') as f:
+    with open(folder_path +'/'+ subjects[subject_id]+'_evaluate_'+input_shape+'.pkl', 'wb') as f:
         pkl.dump(loss_list, f)
         
     if subject_id==3 or subject_id==4:

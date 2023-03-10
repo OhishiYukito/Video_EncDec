@@ -22,13 +22,13 @@ subjects = {
 input_H = 192
 input_W = 256
 batch_size = 8
-lab_server_pc = True
+lab_server_pc = False
 
 
-folder_name_id = 0
+base_model_id = 1
 folder_name_list = {
-    0 : str(input_H)+'*'+str(input_W),
-    1 : "CNN_256*n",
+    0 : "Conv3d",       # if base_model is Conv3d
+    1 : "(2+1)D",       # if base_model is Conv2Plus1D
 }
 ##########################################################
 
@@ -40,10 +40,10 @@ class_indxs, device, dataloader = init.initial_process(lab_server_pc,
                                                        train=True)
 
 # create model instance
-encoder = models.Encoder(3)
+encoder = models.Encoder(3) if base_model_id==0 else models.Encoder2Plus1D(3)
 if subject_id == 0:
     # Reconstruction
-    decoder = models.DecoderToFrames(3)
+    decoder = models.DecoderToReconstruction(3) if base_model_id==0 else models.DecoderToReconstruction2Plus1D(3)
 elif subject_id == 1:
     # Classification
     # get feature's shape
@@ -56,14 +56,15 @@ elif subject_id == 2:
     pass
 elif subject_id == 3:
     # Mix (Reconstruction & Classification)
-    folder_name = folder_name_list[folder_name_id]
+    folder_name = folder_name_list[base_model_id]
+    input_shape = str(input_H)+'*'+str(input_W)
     folder_path = 'result/' + folder_name
-    path_recon = folder_path +'/'+ subjects[0]+'_decoder_'+folder_name+'.pth'
-    path_class = folder_path +'/'+ subjects[1]+'_decoder_'+folder_name+'.pth'
+    path_recon = folder_path +'/'+ subjects[0]+'_decoder_'+input_shape+'.pth'
+    path_class = folder_path +'/'+ subjects[1]+'_decoder_'+input_shape+'.pth'
     decoder = models.DecoderMixReconClass(path_recon, path_class)
 elif subject_id == 4:
     # train Reconstruction & Classification Decoders and Encoder Alternately 
-    decoder1 = models.DecoderToFrames(3)
+    decoder1 = models.DecoderToReconstruction(3)
     encoder.eval()
     example = next(iter(dataloader))[0]
     example = encoder(example)
@@ -220,12 +221,13 @@ for i, batch in enumerate(tqdm(dataloader)):
             log["loss_class"].append(float(loss_class))
                 
 
-folder_name = folder_name_list[folder_name_id]
+folder_name = folder_name_list[base_model_id]
+input_shape = str(input_H)+'*'+str(input_W)
 folder_path = 'result/' + folder_name
 os.makedirs(folder_path, exist_ok=True)
-torch.save(encoder, folder_path +'/'+ subjects[subject_id]+'_encoder_'+folder_name+'.pth')
-torch.save(decoder, folder_path +'/'+ subjects[subject_id]+'_decoder_'+folder_name+'.pth')
-with open(folder_path +'/'+ subjects[subject_id]+'_train-history_'+folder_name+'.pkl', 'wb') as f:
+torch.save(encoder, folder_path +'/'+ subjects[subject_id]+'_encoder_'+input_shape+'.pth')
+torch.save(decoder, folder_path +'/'+ subjects[subject_id]+'_decoder_'+input_shape+'.pth')
+with open(folder_path +'/'+ subjects[subject_id]+'_train-history_'+input_shape+'.pkl', 'wb') as f:
     pickle.dump(log, f)
 
 #torch.save(model, 'model_encoder_decoder.pth')
