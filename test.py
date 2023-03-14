@@ -11,7 +11,7 @@ import tools.initial_process as init
 # create Dataset object and Dataloader
 # The path to root directory, which contains UCF101 video files (not rawframes)
 ### Parameters ###############################################
-subject_id = 4
+subject_id = 1
 subjects = {
     0 : "reconstruction",
     1 : "classification",
@@ -20,8 +20,8 @@ subjects = {
     4 : "alternately_recon-class",
 }
 
-input_H = 120
-input_W = 160
+input_H = 192
+input_W = 256
 batch_size = 8
 lab_server_pc = True
 

@@ -10,7 +10,7 @@ import pickle
 import tools.initial_process as init
 
 ### Parameters ###############################################
-subject_id = 0
+subject_id = 4
 subjects = {
     0 : "reconstruction",
     1 : "classification",
@@ -22,7 +22,7 @@ subjects = {
 input_H = 192
 input_W = 256
 batch_size = 8
-lab_server_pc = False
+lab_server_pc = True
 
 
 base_model_id = 1
@@ -64,7 +64,7 @@ elif subject_id == 3:
     decoder = models.DecoderMixReconClass(path_recon, path_class)
 elif subject_id == 4:
     # train Reconstruction & Classification Decoders and Encoder Alternately 
-    decoder1 = models.DecoderToReconstruction(3)
+    decoder1 = models.DecoderToReconstruction(3) if base_model_id==0 else models.DecoderToReconstruction2Plus1D(3)
     encoder.eval()
     example = next(iter(dataloader))[0]
     example = encoder(example)
