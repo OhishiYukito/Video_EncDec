@@ -1,8 +1,10 @@
 from numpy import number, reshape
 from torchvision import transforms
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import torch
 from tqdm import tqdm
+import os
 
 #########################################################################
 # for reshape to check result by image
@@ -33,7 +35,10 @@ def normalize(x):
 def plot_reconstruction(dataloader, encoder, decoder, device):
     number_of_indication = 0    
     n = 3
-    
+    if getattr(encoder, 'device_ids', False):
+        encoder = encoder.module
+        decoder = decoder.module
+        
     for j, x in enumerate(tqdm(dataloader)):
         # indicate only n samples
         if number_of_indication >= n:
@@ -46,9 +51,7 @@ def plot_reconstruction(dataloader, encoder, decoder, device):
             # plot an origin image
             ax1 = fig.add_subplot(1, 2, 1)
             plot_image(reshaped_batch[0], ax1)
-            if getattr(encoder, 'device_ids', False):
-                encoder = encoder.module
-                decoder = decoder.module
+            
             output = encoder(frame_batches.to(device))
             output = decoder(output)
             output = tfs_re(output[0])
@@ -72,7 +75,10 @@ def plot_classification(dataloader, encoder, decoder, device):
 
     number_of_indication = 0    
     n = 3
-
+    if getattr(encoder, 'device_ids', False):
+        encoder = encoder.module
+        decoder = decoder.module
+        
     for j, x in enumerate(tqdm(dataloader)):
         # indicate only n samples
         if number_of_indication >= n:
@@ -84,9 +90,7 @@ def plot_classification(dataloader, encoder, decoder, device):
             reshaped_batch = tfs_re(frame_batches[0])
             # plot an origin image
             plot_image(reshaped_batch[0])
-            if getattr(encoder, 'device_ids', False):
-                encoder = encoder.module
-                decoder = decoder.module
+            
             output = encoder(frame_batches.to(device))
             output = decoder(output)
             output = torch.nn.Softmax(dim=1)(output)
@@ -118,6 +122,9 @@ def plot_recon_class(dataloader, encoder, decoder, device, subject_id):
 
     number_of_indication = 0    
     n = 3
+    if getattr(encoder, 'device_ids', False):
+        encoder = encoder.module
+        decoder = decoder.module
 
     for j, x in enumerate(tqdm(dataloader)):
         # indicate only n samples
@@ -132,9 +139,7 @@ def plot_recon_class(dataloader, encoder, decoder, device, subject_id):
             # plot an origin image
             ax1 = fig.add_subplot(1, 2, 1)
             plot_image(reshaped_batch[0], ax1)
-            if getattr(encoder, 'device_ids', False):
-                encoder = encoder.module
-                decoder = decoder.module
+            
             output = encoder(frame_batches.to(device))
             if subject_id == 3:
                 output = decoder(output)
@@ -166,3 +171,52 @@ def plot_recon_class(dataloader, encoder, decoder, device, subject_id):
             continue
     plt.show()
 
+
+def plot_animation(dataloader, encoder, decoder, device, subject_name):
+    number_of_indication = 0    
+    n = 3
+    if getattr(encoder, 'device_ids', False):
+        encoder = encoder.module
+        decoder = decoder.module
+    origin_imgs = []
+    output_imgs = []    
+    
+    for j, x in enumerate(tqdm(dataloader)):
+        # indicate only n samples
+        if number_of_indication >= n:
+            break
+
+        if j%100==0:
+            fig = plt.figure()
+            frame_batches = x[0]
+            reshaped_batch = tfs_re(frame_batches[0])
+            # plot an origin image
+            ax1 = fig.add_subplot(1, 2, 1)
+            origin_im = normalize(reshaped_batch[0])
+            ax1.imshow(origin_im.cpu())
+            origin_imgs.append(origin_im)
+            #plot_image(reshaped_batch[0], ax1)
+            
+            output = encoder(frame_batches.to(device))
+            output = decoder(output)
+            output = tfs_re(output[0])
+            # plot a model's output
+            ax2 = fig.add_subplot(1, 2, 2)
+            output_im = normalize(output[0].detach())
+            ax2.imshow(output_im.cpu())
+            output_imgs.append(output_im)
+            #plot_image(output[0].detach(), ax2)
+            #plt.show()
+            number_of_indication += 1
+        else:
+            continue
+        
+    ani_origin = animation.ArtistAnimation(fig, origin_imgs, interval=100, blit=True, repeat_delay=1000)
+    ani_output = animation.ArtistAnimation(fig, output_imgs, interval=100, blit=True, repeat_delay=1000)
+    gif_origin_path = "output/" + subject_name + ".gif"
+    gif_output_path = "output/" + subject_name + ".gif"
+    os.makedirs("output", exist_ok=True)
+    ani_origin.save(gif_origin_path, writer="pillow")
+    ani_output.save(gif_output_path, writer="pillow")
+    
+    plt.show()
