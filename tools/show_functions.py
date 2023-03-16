@@ -30,6 +30,12 @@ def normalize(x):
     x = (x-min)/(max-min) 
     return x
     
+def topk_research(x, true_indicies, k=1):
+    topk = torch.topk(x, k, dim=1)
+    #topk_value = [value for value in topk.values]
+    topk_indices = topk.indices.T
+    total = x.eq(topk_indices).reshape(-1).float().sum(0, keepdim=True)
+    return total
 ########################################################################
 
 def plot_reconstruction(dataloader, encoder, decoder, device):
@@ -236,5 +242,4 @@ def plot_animation(dataloader, encoder, decoder, device, base_model_name, subjec
     
     #ani_origin.save(gif_origin_path, writer="ffmpeg")
     #ani_output.save(gif_output_path, writer="ffmpeg")
-    
     

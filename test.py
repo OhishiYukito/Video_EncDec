@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pickle as pkl
 import tools.initial_process as init
+import tools.show_functions as show
 
 # create Dataset object and Dataloader
 # The path to root directory, which contains UCF101 video files (not rawframes)
@@ -77,6 +78,8 @@ with torch.no_grad():
 
     #log ={"loss":[]}
     loss_list = []
+    total = 0
+    num_test_data = 0
 
     # run test
     for i, batch in enumerate(tqdm(dataloader)):
@@ -99,6 +102,9 @@ with torch.no_grad():
         elif subject_id == 1:
             loss = loss_fn(output, label_batch)
             loss = loss.cpu()
+            total += show.topk_research(output, label_batch, k=1)
+            num_test_data += label_batch.shape[0]
+            
         elif subject_id == 2:
             pass
         elif subject_id == 3 or subject_id==4:
@@ -144,6 +150,8 @@ with torch.no_grad():
     print("mean_value:\t", mean_value)
     print("std:\t", std)
     
+    if subject_id ==1:
+        print("accuracy:\t", total/num_test_data)
     #if subject_id==3:
     #    x = range(0, len(log["loss"])*100, 100)
     #    y_recon = [data[0] for data in loss_list]
