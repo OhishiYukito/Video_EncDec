@@ -7,7 +7,7 @@ from tqdm import tqdm
 import tools.initial_process as init
 import tools.show_functions as show
 ### Parameters ###############################################
-subject_id = 4
+subject_id = 3
 subjects = {
     0 : "reconstruction",
     1 : "classification",
@@ -16,6 +16,8 @@ subjects = {
     4 : "alternately_recon-class",
 }
 
+#input_H = 120
+#input_W = 160
 input_H = 192
 input_W = 256
 batch_size = 8
@@ -64,7 +66,13 @@ if lab_server_pc and subject_id!=1 and subject_id!=3 and subject_id!=4:
 
 #show.plot_images(dataloader, encoder, decoder, device)
 if subject_id == 0:
-    show.plot_reconstruction(dataloader, encoder, decoder, device)
+    #show.plot_reconstruction(dataloader, encoder, decoder, device)
+    show.plot_animation(dataloader, 
+                        encoder, 
+                        decoder, 
+                        device, 
+                        base_model_name= folder_name_list[base_model_id],
+                        subject_name= subjects[subject_id])
 elif subject_id == 1:
     show.plot_classification(dataloader, encoder, decoder, device)
 elif subject_id == 2:
