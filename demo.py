@@ -7,7 +7,7 @@ from tqdm import tqdm
 import tools.initial_process as init
 import tools.show_functions as show
 ### Parameters ###############################################
-subject_id = 3
+subject_id = 4
 subjects = {
     0 : "reconstruction",
     1 : "classification",
@@ -24,10 +24,11 @@ batch_size = 8
 lab_server_pc = True
 
 
-base_model_id = 1
+base_model_id = 2
 folder_name_list = {
     0 : "Conv3d",       # if base_model is Conv3d
-    1 : "(2+1)D",       # if base_model is Conv2Plus1D
+    1 : "(2+1)D_without_softmax",       # if base_model is Conv2Plus1D
+    2 : "(2+1)D",
 }
 ##########################################################
 

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class Encoder(nn.Module):
-    def __init__(self, num_channel, kernel_size=5, pool_size=3):
+    def __init__(self, num_channel, kernel_size=3, pool_size=3):
         super().__init__()
         
         # CNN for a single frame (spatial information)
@@ -31,7 +31,7 @@ class Encoder(nn.Module):
         
         
 class DecoderToReconstruction(nn.Module):
-    def __init__(self, num_channel, kernel_size=5, pool_size=3):
+    def __init__(self, num_channel, kernel_size=3, pool_size=3):
         super().__init__()
         
         # decode from hidden_state to 3d image
@@ -82,7 +82,7 @@ class DecoderToClassification(nn.Module):
         self.fc = nn.Linear(in_features=(input_shape[1]*input_shape[3]*input_shape[4]), out_features=len(class_indxs))
         
         # outputs probability vector
-        #self.softmax = nn.Softmax(dim=1)
+        self.softmax = nn.Softmax(dim=1)
         
     
     def forward(self, input):
@@ -92,7 +92,7 @@ class DecoderToClassification(nn.Module):
         output = self.flatten(input)    # (batch_size, num_frames, C, H, W) -> (batch_size, num_frames, C*H*W)
         output = self.fc(output)        # (batch_size, num_frames, C*H*W) -> (batch_size, num_frames, len(class_indxs))
         output = torch.sum(output, 1)   # (batch_size, num_frames, len(class_indxs)) -> (batch_size, len(class_indxs))
-        #output = self.softmax(output)   # probability vectors
+        output = self.softmax(output)   # probability vectors
         
         return output
         

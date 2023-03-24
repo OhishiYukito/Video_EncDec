@@ -12,7 +12,7 @@ import tools.show_functions as show
 # create Dataset object and Dataloader
 # The path to root directory, which contains UCF101 video files (not rawframes)
 ### Parameters ###############################################
-subject_id = 1
+subject_id = 4
 subjects = {
     0 : "reconstruction",
     1 : "classification",
@@ -26,10 +26,11 @@ input_W = 256
 batch_size = 8
 lab_server_pc = True
 
-base_model_id = 1
+base_model_id = 2
 folder_name_list = {
     0 : "Conv3d",       # if base_model is Conv3d
-    1 : "(2+1)D",       # if base_model is Conv2Plus1D
+    1 : "(2+1)D_without_softmax",       # if base_model is Conv2Plus1D
+    2 : "(2+1)D",
 }
 
 ##########################################################
@@ -40,6 +41,8 @@ class_indxs, device, dataloader = init.initial_process(lab_server_pc,
                                                        input_W, 
                                                        batch_size, 
                                                        train=False)
+
+print(folder_name_list[base_model_id], subjects[subject_id], input_H, input_W)
 
 with torch.no_grad():
     # create model instance
@@ -151,6 +154,8 @@ with torch.no_grad():
     print("std:\t", std)
     
     if subject_id ==1:
+        print("total:\t", total)
+        print("num_test_data:\t", num_test_data)
         print("accuracy:\t", total/num_test_data)
     #if subject_id==3:
     #    x = range(0, len(log["loss"])*100, 100)

@@ -25,10 +25,11 @@ batch_size = 8
 lab_server_pc = True
 
 
-base_model_id = 1
+base_model_id = 2
 folder_name_list = {
     0 : "Conv3d",       # if base_model is Conv3d
-    1 : "(2+1)D",       # if base_model is Conv2Plus1D
+    1 : "(2+1)D_without_softmax",       # if base_model is Conv2Plus1D
+    2 : "(2+1)D",
 }
 ##########################################################
 
@@ -39,8 +40,10 @@ class_indxs, device, dataloader = init.initial_process(lab_server_pc,
                                                        batch_size, 
                                                        train=True)
 
+print(folder_name_list[base_model_id], subjects[subject_id], input_H, input_W)
+
 # create model instance
-encoder = models.Encoder(3) if base_model_id==0 else models.Encoder2Plus1D(3)
+encoder = models.Encoder(3, kernel_size=3) if base_model_id==0 else models.Encoder2Plus1D(3)
 if subject_id == 0:
     # Reconstruction
     decoder = models.DecoderToReconstruction(3) if base_model_id==0 else models.DecoderToReconstruction2Plus1D(3)
