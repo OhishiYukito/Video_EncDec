@@ -10,7 +10,7 @@ import pickle
 import tools.initial_process as init
 
 ### Parameters ###############################################
-subject_id = 4
+subject_id = 1
 subjects = {
     0 : "reconstruction",
     1 : "classification",
@@ -206,18 +206,20 @@ for i, batch in enumerate(tqdm(dataloader)):
     del output
     torch.cuda.empty_cache()
     
-    if i % 100 == 0:
-        if subject_id!=3 and subject_id!=4:
-            log["loss"].append(float(loss))
-        elif subject_id==3:
-            log["loss_recon"].append(float(loss_recon))
-            log["loss_class"].append(float(loss_class))
-        elif subject_id==4:
+
+    if subject_id==4:
+        if i%100 <= alternately_steps:
             # alternately
             if decoder_id == 1:
                 log["loss_recon"].append(float(loss))
             elif decoder_id == 2:
                 log["loss_class"].append(float(loss))
+    elif i%100==0:
+        if subject_id!=3:
+            log["loss"].append(float(loss))
+        elif subject_id==3:
+            log["loss_recon"].append(float(loss_recon))
+            log["loss_class"].append(float(loss_class))
         elif subject_id == 5:
             # simultaneously
             log["loss_recon"].append(float(loss_recon))
