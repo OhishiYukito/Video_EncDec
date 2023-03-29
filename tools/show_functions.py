@@ -5,6 +5,7 @@ import matplotlib.animation as animation
 import torch
 from tqdm import tqdm
 import os
+import pickle
 
 #########################################################################
 # for reshape to check result by image
@@ -34,7 +35,7 @@ def topk_research(x, true_indicies, k=1):
     topk = torch.topk(x, k, dim=1)
     #topk_value = [value for value in topk.values]
     topk_indices = topk.indices.T
-    total = x.eq(topk_indices).reshape(-1).float().sum(0, keepdim=True)
+    total = topk_indices.eq(true_indicies).reshape(-1).float().sum(0, keepdim=True)
     return total
 ########################################################################
 
@@ -77,7 +78,7 @@ def plot_classification(dataloader, encoder, decoder, device):
     with open("dataset/ucfTrainTestSplit/classInd.txt") as f:
         for line in f:
             (key, val) = line.split()
-            d[int(key)] = val
+            d[int(key)-1] = val
 
     number_of_indication = 0    
     n = 3
@@ -105,7 +106,7 @@ def plot_classification(dataloader, encoder, decoder, device):
             top3_value = [value for value in top3.values]
             top3_indices = top3.indices
             top3_class = [d[int(i)] for i in top3_indices]
-            text = "true_label : " + d[int(label_batches[0])+1]+"\n"
+            text = "true_label : " + d[int(label_batches[0])]+"\n"
             text += top3_class[0]+" : "+str(round(float(top3_value[0]), 3))+"\n"
             text += top3_class[1]+" : "+str(round(float(top3_value[1]), 3))+"\n"
             text += top3_class[2]+" : "+str(round(float(top3_value[2]), 3))
@@ -124,7 +125,7 @@ def plot_recon_class(dataloader, encoder, decoder, device, subject_id):
     with open("dataset/ucfTrainTestSplit/classInd.txt") as f:
         for line in f:
             (key, val) = line.split()
-            d[int(key)] = val
+            d[int(key)-1] = val
 
     number_of_indication = 0    
     n = 3
@@ -243,3 +244,58 @@ def plot_animation(dataloader, encoder, decoder, device, base_model_name, subjec
     #ani_origin.save(gif_origin_path, writer="ffmpeg")
     #ani_output.save(gif_output_path, writer="ffmpeg")
     
+
+def plot_log_graph(base_model_name, subject_name, input_H, input_W):
+    path = "result/" + base_model_name + "/" + subject_name + "_train-history_" + str(input_H)+"*"+str(input_W) + ".pkl"
+    with open(path, "rb") as f:
+        log = pickle.load(f)
+    plt.figure()
+    plt.title(base_model_name+"/"+subject_name)
+
+    if "reconstruction"==subject_name or "classification"==subject_name:
+        y = log["loss"]
+        x = range(0, len(y)*100, 100)
+        plt.plot(x,y, label=subject_name)
+
+    if "alternately_" in subject_name:
+        fig, ax_recon = plt.subplot(1,1)
+        ax_class = ax_recon.twinx()
+
+        log_recon = log["loss_recon"]
+        log_class = log["loss_class"]
+
+        x = range(0, len(log_recon)*100, 100)
+        ax_recon.plot(x, log_recon, color="b", label="recon")
+        ax_class.plot(x, log_class, color="g", label="class")
+
+    plt.show()
+
+
+if __name__ == "__main__":
+    ### Parameters ###############################################
+    subject_id = 1
+    subjects = {
+        0 : "reconstruction",
+        1 : "classification",
+        2 : "interpolation",
+        3 : "mix_recon-class",
+        4 : "alternately_recon-class",
+    }
+
+    input_H = 192
+    input_W = 256
+    batch_size = 8
+    lab_server_pc = True
+
+
+    base_model_id = 2
+    folder_name_list = {
+        0 : "Conv3d",       # if base_model is Conv3d
+        1 : "(2+1)D_without_softmax",       # if base_model is Conv2Plus1D
+        2 : "(2+1)D",
+    }
+    ##########################################################
+    plot_log_graph(folder_name_list[base_model_id],
+                   subjects[subject_id],
+                   input_H,
+                   input_W)

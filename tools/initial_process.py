@@ -20,7 +20,7 @@ def initial_process(lab_server_pc, subject_id, input_H, input_W, batch_size, tra
         with open("dataset/ucfTrainTestSplit/classInd.txt") as f:
             for line in f:
                 (key, val) = line.split()
-                class_indxs[int(key)] = val
+                class_indxs[int(key)-1] = val
                 
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -55,7 +55,7 @@ def initial_process(lab_server_pc, subject_id, input_H, input_W, batch_size, tra
 
     dataloader = torch.utils.data.DataLoader(dataset=dataset,
                                             batch_size=batch_size,
-                                            shuffle=False,
+                                            shuffle=train,  # if train_mode, dataset will be shuffled, but in test_mode, shuffle isn't required
                                             collate_fn=custom_collate, 
                                             num_workers=1)
     # data : ((batch_size, C, num_frames, H, W), (class_ids))
