@@ -12,7 +12,7 @@ import tools.show_functions as show
 # create Dataset object and Dataloader
 # The path to root directory, which contains UCF101 video files (not rawframes)
 ### Parameters ###############################################
-subject_id = 4
+subject_id = 1
 subjects = {
     0 : "reconstruction",
     1 : "classification",
@@ -116,6 +116,8 @@ with torch.no_grad():
             loss_class = loss_fn_class(output[1], label_batch)
 
             loss = [loss_recon.cpu(), loss_class.cpu()]
+            total += show.topk_research(output[1], label_batch, k=1)
+            num_test_data += label_batch.shape[0]
 
         #if i % 100 == 0:
             #log["loss"].append(float(loss))
@@ -153,7 +155,7 @@ with torch.no_grad():
     print("mean_value:\t", mean_value)
     print("std:\t", std)
     
-    if subject_id ==1:
+    if subject_id in [1, 3, 4]:
         print("total:\t", total)
         print("num_test_data:\t", num_test_data)
         print("accuracy:\t", total/num_test_data)

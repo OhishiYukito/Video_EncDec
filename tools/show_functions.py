@@ -245,8 +245,11 @@ def plot_animation(dataloader, encoder, decoder, device, base_model_name, subjec
     #ani_output.save(gif_output_path, writer="ffmpeg")
     
 
-def plot_log_graph(base_model_name, subject_name, input_H, input_W):
-    path = "result/" + base_model_name + "/" + subject_name + "_train-history_" + str(input_H)+"*"+str(input_W) + ".pkl"
+def plot_log_graph(base_model_name, subject_name, input_H, input_W, epoch=1):
+    if epoch==1:
+        path = "result/" + base_model_name + "/" + subject_name + "_train-history_" + str(input_H)+"*"+str(input_W) + ".pkl"
+    else:
+        path = "result/" + base_model_name + "/" + subject_name + "_train-history_" + str(input_H)+"*"+str(input_W) +"_"+str(epoch).zfill(2)+"epoch" + ".pkl"
     with open(path, "rb") as f:
         log = pickle.load(f)
     plt.figure()
@@ -298,4 +301,5 @@ if __name__ == "__main__":
     plot_log_graph(folder_name_list[base_model_id],
                    subjects[subject_id],
                    input_H,
-                   input_W)
+                   input_W,
+                   epoch=3)
