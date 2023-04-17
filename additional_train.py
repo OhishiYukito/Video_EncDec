@@ -3,11 +3,12 @@ import torch.nn as nn
 import pickle
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import numpy as np
 
 import tools.initial_process as init
 
 ### Parameters ###############################################
-subject_id = 1
+subject_id = 4
 subjects = {
     0 : "reconstruction",
     1 : "classification",
@@ -29,8 +30,8 @@ folder_name_list = {
     2 : "(2+1)D",
 }
 
-load_model_epoch = 2
-additional_epoch = 3
+load_model_epoch = 1
+additional_epoch = 4
 ##########################################################
 
 class_indxs, device, dataloader = init.initial_process(lab_server_pc,
@@ -95,13 +96,19 @@ if subject_id!=3:
     else:
         optimizer_decoder = torch.optim.SGD(decoder.parameters(), lr=1e-3)
 
-#alternately = True      # determine to train two decoders alternately/simultaneously
-alternately_count = 0
-alternately_steps = 1
 
+log_interval = 100
+#alternately = True      # determine to train two decoders alternately/simultaneously
+alternately_steps = 1
+decoder_id = 2          # in the first iteration, decoder_id will be changed,
+                        # so set decoder_id=2 to start with decoder_id=1
+record_both = True      # to check whether two decoder's log was recorded
 
 for epoch in range(additional_epoch):
     print("epoch: ", load_model_epoch+epoch+1)
+    for key in log:
+        log[key] = log[key].tolist()
+
     for i, batch in enumerate(tqdm(dataloader)):
 
         frame_batch = batch[0].to(device)   # (batch_size, C, num_frames, H, W)
@@ -112,7 +119,8 @@ for epoch in range(additional_epoch):
             output = decoder(features)
         elif  subject_id==4:
             # train decoders alternately
-            decoder_id = ((alternately_count//alternately_steps) % 2) + 1
+            if i % alternately_steps ==0:
+                decoder_id = (decoder_id % 2) +1
             output = decoder(features, decoder_id)
         elif subject_id==5:
             # train decoders simultaneously
@@ -139,7 +147,6 @@ for epoch in range(additional_epoch):
             elif decoder_id == 2:
                 # used decoder2, so loss function is for classification
                 loss = loss_fn_class(output, label_batch)
-            alternately_count += 1
         elif subject_id == 5:
             # loss_recon + loss_class
             loss_recon = loss_fn_recon(output[0], frame_batch)
@@ -189,23 +196,37 @@ for epoch in range(additional_epoch):
         
 
         if subject_id==4:
-            if i%100 <= alternately_steps:
+            if i%log_interval == 0 and record_both:
+                # record log only one side
                 # alternately
                 if decoder_id == 1:
-                    log["loss_recon"].append(float(loss))
+                    log["loss_recon"].append( [i, float(loss)] )
+                    recorded_id = 1
                 elif decoder_id == 2:
-                    log["loss_class"].append(float(loss))
-        elif i%100==0:
+                    log["loss_class"].append( [i, float(loss)] )
+                    recorded_id = 2
+                record_both = False
+            elif not record_both and decoder_id!=recorded_id:
+                # record other side
+                if decoder_id == 1:
+                    log["loss_recon"].append( [i, float(loss)] )
+                elif decoder_id == 2:
+                    log["loss_class"].append( [i, float(loss)] )
+                record_both = True
+
+        elif i%log_interval==0:
             if subject_id!=3:
-                log["loss"].append(float(loss))
+                log["loss"].append( [i, float(loss)] )
             elif subject_id==3:
-                log["loss_recon"].append(float(loss_recon))
-                log["loss_class"].append(float(loss_class))
+                log["loss_recon"].append( [i, float(loss_recon)] )
+                log["loss_class"].append( [i, float(loss_class)] )
             elif subject_id == 5:
                 # simultaneously
-                log["loss_recon"].append(float(loss_recon))
-                log["loss_class"].append(float(loss_class))
+                log["loss_recon"].append( [i, float(loss_recon)] )
+                log["loss_class"].append( [i, float(loss_class)] )
                     
+    for key in log:
+        log[key] = np.array(log[key])
 
     trained_epochs = load_model_epoch + epoch + 1
     torch.save(encoder, file_path_incomplete+'_encoder_'+input_shape+'_'+str(trained_epochs).zfill(2)+'epoch'+'.pth')
@@ -213,6 +234,22 @@ for epoch in range(additional_epoch):
     with open(file_path_incomplete+'_train-history_'+input_shape+'_'+str(trained_epochs).zfill(2)+'epoch'+'.pkl', 'wb') as f:
         pickle.dump(log, f)
 
-x = range(len(log["loss"]))
-plt.plot(x, log["loss"])
+
+if subject_id!=4:
+    x = log["loss"][:, 0]
+    y = log["loss"][:, 1]
+    plt.plot(x, y)
+else:
+    x1 = log["loss_recon"][:, 0]
+    y1 = log["loss_recon"][:, 1]
+    x2 = log["loss_class"][:, 0]
+    y2 = log["loss_class"][:, 1]
+    plt.figure()
+    plt.title("loss_recon")
+    plt.plot(x1, y1)
+
+    plt.figure()
+    plt.title("loss_class")
+    plt.plot(x2, y2)
+
 plt.show()

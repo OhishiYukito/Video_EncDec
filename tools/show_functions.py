@@ -5,6 +5,7 @@ import matplotlib.animation as animation
 import torch
 from tqdm import tqdm
 import os
+import numpy as np
 import pickle
 
 #########################################################################
@@ -252,31 +253,40 @@ def plot_log_graph(base_model_name, subject_name, input_H, input_W, epoch=1):
         path = "result/" + base_model_name + "/" + subject_name + "_train-history_" + str(input_H)+"*"+str(input_W) +"_"+str(epoch).zfill(2)+"epoch" + ".pkl"
     with open(path, "rb") as f:
         log = pickle.load(f)
-    plt.figure()
-    plt.title(base_model_name+"/"+subject_name)
+        for key in log:
+            log[key] = np.array(log[key])
+    
 
     if "reconstruction"==subject_name or "classification"==subject_name:
+        plt.figure()
+        plt.title(base_model_name+"/"+subject_name)
         y = log["loss"]
         x = range(0, len(y)*100, 100)
         plt.plot(x,y, label=subject_name)
 
     if "alternately_" in subject_name:
-        fig, ax_recon = plt.subplot(1,1)
+        fig, ax_recon = plt.subplots(1,1)
+        plt.title(base_model_name+"/"+subject_name)
         ax_class = ax_recon.twinx()
 
         log_recon = log["loss_recon"]
         log_class = log["loss_class"]
 
         x = range(0, len(log_recon)*100, 100)
-        ax_recon.plot(x, log_recon, color="b", label="recon")
-        ax_class.plot(x, log_class, color="g", label="class")
+        ax_recon.plot(x, log_recon[:,1], color="b", label="recon")
+        hr, lr = ax_recon.get_legend_handles_labels()
+        ax_recon.set_ylabel("reconstruction")
+        ax_class.plot(x, log_class[:,1], color="g", label="class")
+        hc, lc = ax_class.get_legend_handles_labels()
+        ax_class.set_ylabel("classification")
+        plt.legend(hr+hc, lr+lc)
 
     plt.show()
 
 
 if __name__ == "__main__":
     ### Parameters ###############################################
-    subject_id = 1
+    subject_id = 4
     subjects = {
         0 : "reconstruction",
         1 : "classification",
@@ -302,4 +312,4 @@ if __name__ == "__main__":
                    subjects[subject_id],
                    input_H,
                    input_W,
-                   epoch=3)
+                   epoch=5)
