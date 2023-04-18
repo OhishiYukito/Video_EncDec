@@ -6,6 +6,8 @@ from torchvision.datasets import UCF101
 from tqdm import tqdm
 import tools.initial_process as init
 import tools.show_functions as show
+from models import EncoderDecoder
+
 ### Parameters ###############################################
 subject_id = 1
 subjects = {
@@ -16,12 +18,14 @@ subjects = {
     4 : "alternately_recon-class",
 }
 
+grad_cam = True
+
 #input_H = 120
 #input_W = 160
 input_H = 192
 input_W = 256
 batch_size = 8
-lab_server_pc = True
+lab_server_pc = False
 
 
 base_model_id = 3
@@ -70,18 +74,24 @@ if lab_server_pc and subject_id!=1 and subject_id!=3 and subject_id!=4:
     encoder = nn.DataParallel(encoder, device_ids=[0,1,2,3])
     decoder = nn.DataParallel(decoder, device_ids=[0,1,2,3])
 
-#show.plot_images(dataloader, encoder, decoder, device)
-if subject_id == 0:
-    #show.plot_reconstruction(dataloader, encoder, decoder, device)
-    show.plot_animation(dataloader, 
-                        encoder, 
-                        decoder, 
-                        device, 
-                        base_model_name= folder_name_list[base_model_id],
-                        subject_name= subjects[subject_id])
-elif subject_id == 1:
-    show.plot_classification(dataloader, encoder, decoder, device)
-elif subject_id == 2:
-    pass
-elif subject_id == 3 or subject_id == 4:
-    show.plot_recon_class(dataloader, encoder, decoder, device, subject_id)
+
+if grad_cam:
+    model = EncoderDecoder(encoder, decoder)
+    show.plot_grad_cam(input, model=model, target_layers=None)    
+    
+else:    
+    #show.plot_images(dataloader, encoder, decoder, device)
+    if subject_id == 0:
+        #show.plot_reconstruction(dataloader, encoder, decoder, device)
+        show.plot_animation(dataloader, 
+                            encoder, 
+                            decoder, 
+                            device, 
+                            base_model_name= folder_name_list[base_model_id],
+                            subject_name= subjects[subject_id])
+    elif subject_id == 1:
+        show.plot_classification(dataloader, encoder, decoder, device)
+    elif subject_id == 2:
+        pass
+    elif subject_id == 3 or subject_id == 4:
+        show.plot_recon_class(dataloader, encoder, decoder, device, subject_id)

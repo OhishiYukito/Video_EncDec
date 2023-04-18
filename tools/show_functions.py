@@ -8,6 +8,9 @@ import os
 import numpy as np
 import pickle
 
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.image import show_cam_on_image
+
 #########################################################################
 # for reshape to check result by image
 tfs_re = transforms.Compose([
@@ -244,6 +247,12 @@ def plot_animation(dataloader, encoder, decoder, device, base_model_name, subjec
     
     #ani_origin.save(gif_origin_path, writer="ffmpeg")
     #ani_output.save(gif_output_path, writer="ffmpeg")
+    
+
+def plot_grad_cam(input, model, target_layers):
+    cam = GradCAM(model= model, target_layers= target_layers, use_cuda= torch.cuda.is_available())
+    vis_image = input[0][0]
+    print(input.shape, vis_image.shape)
     
 
 def plot_log_graph(base_model_name, subject_name, input_H, input_W, epoch=1):
