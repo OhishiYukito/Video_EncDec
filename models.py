@@ -57,11 +57,11 @@ class DecoderToReconstruction(nn.Module):
 
 
 class EncoderDecoder(nn.Module):
-    def __init__(self, num_channel):
+    def __init__(self, encoder, decoder):
         super().__init__()
 
-        self.encoder = Encoder(num_channel)
-        self.decoder = DecoderToReconstruction(num_channel)
+        self.encoder = encoder
+        self.decoder = decoder
 
     def forward(self, input):
         features = self.encoder(input)
