@@ -260,7 +260,7 @@ def plot_log_graph(base_model_name, subject_name, input_H, input_W, epoch=1):
     if "reconstruction"==subject_name or "classification"==subject_name:
         plt.figure()
         plt.title(base_model_name+"/"+subject_name)
-        y = log["loss"]
+        y = log["loss"][:,1]
         x = range(0, len(y)*100, 100)
         plt.plot(x,y, label=subject_name)
 
@@ -286,7 +286,7 @@ def plot_log_graph(base_model_name, subject_name, input_H, input_W, epoch=1):
 
 if __name__ == "__main__":
     ### Parameters ###############################################
-    subject_id = 4
+    subject_id = 1
     subjects = {
         0 : "reconstruction",
         1 : "classification",
@@ -301,11 +301,12 @@ if __name__ == "__main__":
     lab_server_pc = True
 
 
-    base_model_id = 2
+    base_model_id = 3
     folder_name_list = {
         0 : "Conv3d",       # if base_model is Conv3d
         1 : "(2+1)D_without_softmax",       # if base_model is Conv2Plus1D
         2 : "(2+1)D",
+        3 : "(2+1)D_DecToClass_fc5",
     }
     ##########################################################
     plot_log_graph(folder_name_list[base_model_id],

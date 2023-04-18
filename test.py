@@ -26,12 +26,15 @@ input_W = 256
 batch_size = 8
 lab_server_pc = True
 
-base_model_id = 2
+base_model_id = 3
 folder_name_list = {
     0 : "Conv3d",       # if base_model is Conv3d
     1 : "(2+1)D_without_softmax",       # if base_model is Conv2Plus1D
     2 : "(2+1)D",
+    3 : "(2+1)D_DecToClass_fc5",
 }
+
+load_model_epoch = 5
 
 ##########################################################
 
@@ -47,11 +50,17 @@ print(folder_name_list[base_model_id], subjects[subject_id], input_H, input_W)
 with torch.no_grad():
     # create model instance
     folder_name = folder_name_list[base_model_id]
-    input_shape = str(input_H)+'*'+str(input_W)
     folder_path = 'result/' + folder_name
-    encoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_encoder_'+input_shape+'.pth')
-    decoder = torch.load(folder_path +'/'+ subjects[subject_id]+'_decoder_'+input_shape+'.pth')
+    input_shape = str(input_H)+'*'+str(input_W)
+    file_path_incomplete = folder_path + '/' + subjects[subject_id]
+    if load_model_epoch==1:
+        file_path_last_part = input_shape
+    else:
+        file_path_last_part = input_shape + '_'+str(load_model_epoch).zfill(2)+'epoch'
+    encoder = torch.load(file_path_incomplete +'_encoder_'+ file_path_last_part+'.pth')
+    decoder = torch.load(file_path_incomplete +'_decoder_'+ file_path_last_part+'.pth')
     
+
     if getattr(encoder, 'device_ids', False):
         encoder = encoder.module
         decoder = decoder.module

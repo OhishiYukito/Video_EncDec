@@ -8,7 +8,7 @@ import numpy as np
 import tools.initial_process as init
 
 ### Parameters ###############################################
-subject_id = 4
+subject_id = 1
 subjects = {
     0 : "reconstruction",
     1 : "classification",
@@ -23,11 +23,12 @@ batch_size = 8
 lab_server_pc = True
 
 
-base_model_id = 2
+base_model_id = 3
 folder_name_list = {
     0 : "Conv3d",       # if base_model is Conv3d
     1 : "(2+1)D_without_softmax",       # if base_model is Conv2Plus1D
     2 : "(2+1)D",
+    3 : "(2+1)D_DecToClass_fc5"
 }
 
 load_model_epoch = 1

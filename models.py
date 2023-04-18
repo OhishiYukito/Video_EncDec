@@ -79,8 +79,11 @@ class DecoderToClassification(nn.Module):
         
         # (batch_size, num_frames, C*H*W) -> (batch_size, num_frames, len(class_indxs))
         # input_shape=(batch_size, C, num_frames, H, W)
-        self.fc = nn.Linear(in_features=(input_shape[1]*input_shape[3]*input_shape[4]), out_features=len(class_indxs))
-        
+        self.fc1 = nn.Linear(in_features=(input_shape[1]*input_shape[3]*input_shape[4]), out_features=(input_shape[1]*input_shape[3]*input_shape[4])//2)
+        self.fc2 = nn.Linear(in_features=(input_shape[1]*input_shape[3]*input_shape[4])//2, out_features=(input_shape[1]*input_shape[3]*input_shape[4])//4)
+        self.fc3 = nn.Linear(in_features=(input_shape[1]*input_shape[3]*input_shape[4])//4, out_features=(input_shape[1]*input_shape[3]*input_shape[4])//8)
+        self.fc4 = nn.Linear(in_features=(input_shape[1]*input_shape[3]*input_shape[4])//8, out_features=(input_shape[1]*input_shape[3]*input_shape[4])//16)
+        self.fc5 = nn.Linear(in_features=(input_shape[1]*input_shape[3]*input_shape[4])//16, out_features=len(class_indxs))
         # outputs probability vector
         self.softmax = nn.Softmax(dim=1)
         
@@ -90,7 +93,13 @@ class DecoderToClassification(nn.Module):
         
         input = input.permute(0,2,1,3,4)         # (batch_size, C, num_frames, H, W) -> (batch_size, num_frames, C, H, W)
         output = self.flatten(input)    # (batch_size, num_frames, C, H, W) -> (batch_size, num_frames, C*H*W)
-        output = self.fc(output)        # (batch_size, num_frames, C*H*W) -> (batch_size, num_frames, len(class_indxs))
+        
+        output = self.fc1(output)        # (batch_size, num_frames, C*H*W) -> (batch_size, num_frames, len(class_indxs))
+        output = self.fc2(output)
+        output = self.fc3(output)
+        output = self.fc4(output)
+        output = self.fc5(output)
+        
         output = torch.sum(output, 1)   # (batch_size, num_frames, len(class_indxs)) -> (batch_size, len(class_indxs))
         output = self.softmax(output)   # probability vectors
         
